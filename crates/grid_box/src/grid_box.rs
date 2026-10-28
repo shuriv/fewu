@@ -2,11 +2,14 @@
 //! their relationships out on a canvas.
 
 pub mod grid_box_view;
+pub mod indexer;
 
 use gpui::{App, actions};
 use workspace::Workspace;
 
-pub use grid_box_view::GridBoxView;
+pub use grid_box_view::{
+    Camera2D, EdgeKind, GridBoxView, GridEdge, GridLayoutMode, GridNode, NodeId,
+};
 
 actions!(
     grid_box,
