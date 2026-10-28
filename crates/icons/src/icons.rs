@@ -130,6 +130,7 @@ pub enum IconName {
     ExpandVertical,
     Eye,
     EyeOff,
+    FewuLogo,
     File,
     FileCode,
     FileCodeOff,
@@ -240,7 +241,6 @@ pub enum IconName {
     Unpin,
     UserCheck,
     Warning,
-    Wu,
     WholeWord,
     XCircle,
 }
