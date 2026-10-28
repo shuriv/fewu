@@ -1115,6 +1115,10 @@ pub struct AgentChatSettingsContent {
     ///
     /// Default: true
     pub claude_in_chrome: Option<bool>,
+    /// Stop an agent's active run after this many seconds without progress; 0 disables it.
+    ///
+    /// Default: 180
+    pub idle_shutdown_secs: Option<u64>,
 }
 
 #[with_fallible_options]

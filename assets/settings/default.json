@@ -147,6 +147,8 @@
     "confirm_quit_while_working": true,
     // Lets Claude Code chats use Chrome through the Claude in Chrome extension.
     "claude_in_chrome": true,
+    // Stop an agent's run after this many seconds without progress. 0 disables it.
+    "idle_shutdown_secs": 180,
   },
   // Image viewer settings
   "image_viewer": {

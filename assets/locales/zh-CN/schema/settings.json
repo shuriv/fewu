@@ -463,6 +463,7 @@
   "Specifies the density of the UI.\nNote: This setting is still experimental. See [this tracking issue](https://github.com/zed-industries/zed/issues/18078)": "指定界面的密度。\n备注：此设置仍处于实验阶段。请参阅[此跟踪问题](https://github.com/zed-industries/zed/issues/18078)",
   "Start searching as you type in project search, without pressing Enter.": "在项目搜索中边输入边搜索，无需按 Enter。",
   "Sticky scroll related settings": "粘性滚动相关设置",
+  "Stop an agent's active run after this many seconds without progress; 0 disables it.\n\nDefault: 180": "智能体在没有进展这么多秒后停止其活动运行;0 表示禁用。\n\n默认值:180",
   "TODO: this should just be a bool\nControls the behavior of formatting files when they are saved.": "TODO：这里应该只是一个布尔值\n控制保存文件时的格式化行为。",
   "Takes up the full width of the window": "占满窗口的整个宽度",
   "Task configuration for this language.\n\nDefault: {}": "此语言的任务配置。\n\n默认值：{}",

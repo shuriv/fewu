@@ -2255,6 +2255,7 @@ pub struct AgentStore {
     save_defaults_task: Task<()>,
     load_task: Option<Shared<Task<()>>>,
     agent_updates: HashMap<AgentKind, AgentUpdate>,
+    _idle_governor: Task<()>,
 }
 
 #[derive(Clone)]
@@ -2475,11 +2476,62 @@ impl AgentStore {
             save_defaults_task: Task::ready(()),
             load_task: None,
             agent_updates: HashMap::default(),
+            _idle_governor: Task::ready(()),
         };
         if AgentChatSettings::get_global(cx).enabled {
             store.load_saved_chats(cx);
         }
+        store._idle_governor = Self::maintain_idle_governor(cx);
         store
+    }
+
+    /// How often the idle governor checks for agents to shut down.
+    fn idle_governor_interval() -> std::time::Duration {
+        std::time::Duration::from_secs(30)
+    }
+
+    fn maintain_idle_governor(cx: &mut Context<Self>) -> Task<()> {
+        cx.spawn(async move |this, cx| loop {
+            cx.background_executor()
+                .timer(Self::idle_governor_interval())
+                .await;
+            if this
+                .update(cx, |store, cx| store.evict_idle_sessions(cx))
+                .is_err()
+            {
+                break;
+            }
+        })
+    }
+
+    /// Stops agents that have had no active turn for the configured idle timeout, so
+    /// background chats do not keep holding child processes and memory.
+    fn evict_idle_sessions(&mut self, cx: &mut Context<Self>) {
+        let timeout_secs = AgentChatSettings::get_global(cx).idle_shutdown_secs;
+        if timeout_secs == 0 {
+            return;
+        }
+        let deadline = now() - timeout_secs as i64;
+        let idle: Vec<Entity<AgentSession>> = self
+            .live
+            .values()
+            .filter(|session| {
+                let session = session.read(cx);
+                !session.is_working()
+                    && !session.is_deleted()
+                    && session.metadata().updated_at <= deadline
+            })
+            .cloned()
+            .collect();
+        for session in idle {
+            session.update(cx, |session, cx| {
+                if session.is_working() {
+                    return;
+                }
+                session.stop(cx);
+                session.save_metadata(cx);
+            });
+        }
     }
 
     fn load_saved_chats(&mut self, cx: &mut Context<Self>) {

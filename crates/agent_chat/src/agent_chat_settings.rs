@@ -28,6 +28,8 @@ pub struct AgentChatSettings {
     pub steer_while_working: bool,
     pub confirm_quit_while_working: bool,
     pub claude_in_chrome: bool,
+    /// Seconds without progress after which an idle agent run is stopped. 0 disables it.
+    pub idle_shutdown_secs: u64,
 }
 
 impl AgentChatSettings {
@@ -98,6 +100,7 @@ impl Settings for AgentChatSettings {
                 == AgentChatWhileWorking::Steer,
             confirm_quit_while_working: content.confirm_quit_while_working.unwrap_or(true),
             claude_in_chrome: content.claude_in_chrome.unwrap_or(true),
+            idle_shutdown_secs: content.idle_shutdown_secs.unwrap_or(180),
         }
     }
 }
