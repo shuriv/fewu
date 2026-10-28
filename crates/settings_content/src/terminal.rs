@@ -159,7 +159,7 @@ pub struct TerminalSettingsContent {
     /// Existing terminals will not pick up this change until they are recreated.
     /// See <a href="https://github.com/alacritty/alacritty/blob/cb3a79dbf6472740daca8440d5166c1d4af5029e/extra/man/alacritty.5.scd?plain=1#L207-L213">Alacritty documentation</a> for more information.
     ///
-    /// Default: 10_000
+    /// Default: 2_000
     pub max_scroll_history_lines: Option<usize>,
     /// The multiplier for scrolling with the mouse wheel.
     ///
