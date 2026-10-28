@@ -193,6 +193,9 @@ default-members = ["crates/wu"]
 [workspace.package]
 publish = false
 edition = "2024"
+authors = ["Matthew <https://github.com/shuriv>"]
+homepage = "https://github.com/shuriv/fewu"
+repository = "https://github.com/shuriv/fewu"
 
 [workspace.dependencies]
 
@@ -825,6 +828,7 @@ split-debuginfo = "unpacked"
 incremental = true
 codegen-units = 16
 debug = 0
+strip = "debuginfo"
 
 # mirror configuration for crates compiled for the build platform
 # (without this cargo will compile ~400 crates twice)
@@ -894,6 +898,12 @@ wu_actions = { codegen-units = 1 }
 debug = "line-tables-only"
 lto = "thin"
 codegen-units = 1
+opt-level = "z"
+strip = "symbols"
+# NOTE: `panic = "abort"` was requested for size, but it disables unwinding
+# (breaking `catch_unwind` and some GPUI paths). Enable only after confirming
+# nothing in the dependency graph relies on unwinding.
+panic = "unwind"
 
 [profile.release-fast]
 inherits = "release"

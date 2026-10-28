@@ -1,7 +1,20 @@
 [build]
-jobs = 4
+# fewu targets 8 GB machines (and the linker is the peak-RSS offender), so keep
+# build parallelism low to avoid OOM-killing the linker.
+jobs = 2
 # v0 mangling scheme provides more detailed backtraces around closures
-rustflags = ["-C", "symbol-mangling-version=v0", "--cfg", "tokio_unstable"]
+rustflags = [
+    "-C",
+    "symbol-mangling-version=v0",
+    "--cfg",
+    "tokio_unstable",
+    # Link with LLVM's `lld` to cut peak linker memory and link time. This
+    # requires `lld` to be installed and discoverable by the C compiler driver
+    # (e.g. `gcc`/`clang` supporting `-fuse-ld=lld`). Remove this if `lld` is
+    # unavailable on the build machine.
+    "-C",
+    "link-arg=-fuse-ld=lld",
+]
 
 [alias]
 xtask = "run --package xtask --"

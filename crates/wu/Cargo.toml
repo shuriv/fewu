@@ -1,10 +1,16 @@
 [package]
-description = "The fast, native VSCode alternative."
+description = "fewu — a lightweight, native code editor and agent workspace for low-end machines."
 edition.workspace = true
+# The package/binary identifier stays `wu` for now: renaming it also requires
+# updating the Windows installer/auto-updater/CLI, which all hard-code `Wu.exe`.
+# The user-facing product name and config directory are branded `fewu`.
 name = "wu"
 version = "1.1.13"
 publish.workspace = true
 license = "GPL-3.0-or-later"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
 default-run = "wu"
 
 [lints]
