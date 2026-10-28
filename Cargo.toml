@@ -65,6 +65,7 @@ members = [
     "crates/gpui_wgpu",
     "crates/gpui_windows",
     "crates/grammars",
+    "crates/grid_box",
     "crates/http_client",
     "crates/http_client_tls",
     "crates/i18n",
@@ -261,6 +262,7 @@ gpui_web = { path = "crates/gpui_web" }
 gpui_wgpu = { path = "crates/gpui_wgpu" }
 gpui_windows = { path = "crates/gpui_windows", default-features = false }
 grammars = { path = "crates/grammars" }
+grid_box = { path = "crates/grid_box" }
 http_client = { path = "crates/http_client" }
 http_client_tls = { path = "crates/http_client_tls" }
 i18n = { path = "crates/i18n" }

@@ -5731,6 +5731,7 @@ mod tests {
             agent_chat::init(None, cx);
             terminal_view::init(cx);
             image_viewer::init(cx);
+            grid_box::init(cx);
             tasks_ui::init(cx);
             project::debugger::breakpoint_store::BreakpointStore::init(
                 &app_state.client.clone().into(),
