@@ -4,6 +4,7 @@ pub mod dock;
 pub mod history_manager;
 pub mod invalid_item_view;
 pub mod item;
+mod memory_footprint;
 mod modal_layer;
 mod multi_workspace;
 #[cfg(test)]
@@ -117,6 +118,7 @@ use sqlez::{
     statement::Statement,
 };
 use status_bar::StatusBar;
+pub use memory_footprint::MemoryFootprintItem;
 pub use status_bar::{HideStatusItem, StatusItemView, add_hide_button_entry};
 use std::{
     any::TypeId,

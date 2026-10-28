@@ -597,6 +597,10 @@ pub struct StatusBarSettingsContent {
     ///
     /// Default: non_utf8
     pub active_encoding_button: Option<EncodingDisplayOptions>,
+    /// Whether to show the live process-memory indicator in the status bar.
+    ///
+    /// Default: true
+    pub memory_footprint_button: Option<bool>,
 }
 
 #[derive(

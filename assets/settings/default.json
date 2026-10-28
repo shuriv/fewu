@@ -1587,6 +1587,8 @@
     "line_endings_button": false,
     // Control when to show the active encoding in the status bar.
     "active_encoding_button": "non_utf8",
+    // Whether to show the live process-memory indicator in the status bar.
+    "memory_footprint_button": true,
   },
   // Settings specific to the terminal
   "terminal": {

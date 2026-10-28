@@ -841,6 +841,7 @@
   "Whether to show the git status in the outline panel.\n\nDefault: true": "是否在大纲面板中显示 Git 状态。\n\n默认值：true",
   "Whether to show the git status in the project panel.\n\nDefault: true": "是否在项目面板中显示 Git 状态。\n\n默认值：true",
   "Whether to show the informational hover box when moving the mouse\nover symbols in the editor.\n\nDefault: true": "鼠标移到编辑器中的符号上时，是否显示信息悬停框。\n\n默认值：true",
+  "Whether to show the live process-memory indicator in the status bar.\n\nDefault: true": "是否在状态栏中显示实时进程内存指示器。\n\n默认值：true",
   "Whether to show the menus in the title bar.\n\nDefault: false": "是否在标题栏中显示菜单。\n\n默认值：false",
   "Whether to show the name of the active file in the status bar.\n\nDefault: false": "是否在状态栏中显示当前文件的名称。\n\n默认值：false",
   "Whether to show the outline panel button in the status bar.\n\nDefault: true": "是否在状态栏中显示大纲面板按钮。\n\n默认值：true",
