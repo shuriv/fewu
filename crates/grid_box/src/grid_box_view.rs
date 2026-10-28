@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use gpui::{
-    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, ParentElement,
-    Pixels, Point, Render, SharedString, Styled, Subscription, Task, WeakEntity, Window, px,
+    App, Bounds, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, MouseButton,
+    ParentElement, Pixels, Point, Render, SharedString, Styled, Subscription, Task, WeakEntity,
+    Window, point, px,
 };
 use project::{Project, ProjectPath};
 use ui::prelude::*;
@@ -12,8 +13,9 @@ use workspace::item::{Item, ItemEvent};
 
 use crate::canvas_element::{self, LabelCache};
 use crate::indexer::{self, SourceFile};
-use crate::layout::{self, ClusterBounds, Vec2};
-use crate::{ToggleGridBox, ToggleLayoutMode};
+use crate::layout::{self, ClusterBounds, Vec2, NODE_SIZE};
+use crate::persistence::{PersistedLayout, PinnedNode};
+use crate::{PinSelectedNodes, ToggleGridBox, ToggleLayoutMode};
 
 /// Delay before a content edit triggers a re-index.
 const REINDEX_DEBOUNCE: Duration = Duration::from_secs(2);
@@ -77,6 +79,15 @@ impl Default for Camera2D {
     }
 }
 
+/// An in-progress pointer interaction.
+#[derive(Clone, Copy, Debug)]
+enum DragState {
+    /// Panning the camera by dragging.
+    Pan { last: Point<Pixels> },
+    /// Selecting nodes with a lasso rectangle, in world coordinates.
+    Lasso { start: Vec2, current: Vec2 },
+}
+
 /// The Grid-Box spatial file graph, shown as a tab in a central pane.
 pub struct GridBoxView {
     project: Entity<Project>,
@@ -88,6 +99,9 @@ pub struct GridBoxView {
     layout_mode: GridLayoutMode,
     positions: HashMap<NodeId, Vec2>,
     clusters: Vec<ClusterBounds>,
+    selected_nodes: HashSet<NodeId>,
+    drag: Option<DragState>,
+    persisted: PersistedLayout,
     _project_subscription: Subscription,
     _index_task: Option<Task<()>>,
     _pending_reindex: Option<Task<()>>,
@@ -120,12 +134,17 @@ impl GridBoxView {
             layout_mode: GridLayoutMode::default(),
             positions: HashMap::new(),
             clusters: Vec::new(),
+            selected_nodes: HashSet::new(),
+            drag: None,
+            persisted: PersistedLayout::default(),
             _project_subscription: project_subscription,
             _index_task: None,
             _pending_reindex: None,
             _layout_task: None,
             _layout_animation: None,
         };
+        let key = this.persistence_key(cx);
+        this.persisted = PersistedLayout::load(cx, &key);
         this.reindex(cx);
         this
     }
@@ -172,6 +191,8 @@ impl GridBoxView {
             this.update(cx, |view, cx| {
                 view.nodes = nodes;
                 view.edges = edges;
+                let mut layout = layout;
+                view.apply_persisted(&mut layout);
                 view.animate_to(layout, cx);
             })
             .ok();
@@ -226,6 +247,49 @@ impl GridBoxView {
         self.recompute_layout(cx);
     }
 
+    fn apply_persisted(&self, layout: &mut layout::Layout) {
+        for node in &self.nodes {
+            if let Some(position) = self.persisted.position(&path_key(&node.path)) {
+                layout.positions.insert(node.id, position);
+            }
+        }
+    }
+
+    fn pin_selected(&mut self, cx: &mut Context<Self>) {
+        if self.selected_nodes.is_empty() {
+            return;
+        }
+        for node in &self.nodes {
+            if !self.selected_nodes.contains(&node.id) {
+                continue;
+            }
+            if let Some(position) = self.positions.get(&node.id).copied() {
+                self.persisted.pins.insert(
+                    path_key(&node.path),
+                    PinnedNode {
+                        x: position.x,
+                        y: position.y,
+                        pinned: true,
+                    },
+                );
+            }
+        }
+        let key = self.persistence_key(cx);
+        self.persisted.save(cx, key);
+        cx.notify();
+    }
+
+    fn persistence_key(&self, cx: &App) -> String {
+        let mut roots: Vec<String> = self
+            .project
+            .read(cx)
+            .worktrees(cx)
+            .map(|worktree| worktree.read(cx).abs_path().to_string_lossy().into_owned())
+            .collect();
+        roots.sort();
+        roots.join("\n")
+    }
+
     pub(crate) fn nodes(&self) -> &[GridNode] {
         &self.nodes
     }
@@ -244,6 +308,147 @@ impl GridBoxView {
 
     pub(crate) fn camera(&self) -> Camera2D {
         self.camera
+    }
+
+    pub(crate) fn selected_nodes(&self) -> &HashSet<NodeId> {
+        &self.selected_nodes
+    }
+
+    pub(crate) fn lasso_rect(&self) -> Option<(Vec2, Vec2)> {
+        match self.drag {
+            Some(DragState::Lasso { start, current }) => Some((start, current)),
+            _ => None,
+        }
+    }
+
+    fn screen_to_world(&self, bounds: Bounds<Pixels>, screen: Point<Pixels>) -> Vec2 {
+        let pan = Vec2::new(f32::from(self.camera.pan.x), f32::from(self.camera.pan.y));
+        let zoom = self.camera.zoom;
+        Vec2::new(
+            (f32::from(screen.x) - f32::from(bounds.origin.x)) / zoom + pan.x,
+            (f32::from(screen.y) - f32::from(bounds.origin.y)) / zoom + pan.y,
+        )
+    }
+
+    fn node_at(&self, bounds: Bounds<Pixels>, screen: Point<Pixels>) -> Option<NodeId> {
+        let world = self.screen_to_world(bounds, screen);
+        self.nodes
+            .iter()
+            .find(|node| {
+                self.positions.get(&node.id).is_some_and(|position| {
+                    world.x >= position.x
+                        && world.x <= position.x + NODE_SIZE.x
+                        && world.y >= position.y
+                        && world.y <= position.y + NODE_SIZE.y
+                })
+            })
+            .map(|node| node.id)
+    }
+
+    fn open_node(&mut self, id: NodeId, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .map(|node| node.path.clone())
+        else {
+            return;
+        };
+        if let Some(workspace) = self.workspace.upgrade() {
+            workspace.update(cx, |workspace, cx| {
+                workspace.open_path(path, None, true, window, cx).detach();
+            });
+        }
+    }
+
+    pub(crate) fn mouse_down(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        button: MouseButton,
+        position: Point<Pixels>,
+        shift: bool,
+        click_count: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match button {
+            MouseButton::Middle => {
+                self.drag = Some(DragState::Pan { last: position });
+            }
+            MouseButton::Left if shift => {
+                let world = self.screen_to_world(bounds, position);
+                self.drag = Some(DragState::Lasso {
+                    start: world,
+                    current: world,
+                });
+                cx.notify();
+            }
+            MouseButton::Left => {
+                self.selected_nodes.clear();
+                if let Some(id) = self.node_at(bounds, position) {
+                    self.selected_nodes.insert(id);
+                    if click_count >= 2 {
+                        self.open_node(id, window, cx);
+                    }
+                }
+                cx.notify();
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn mouse_move(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        match self.drag {
+            Some(DragState::Pan { last }) => {
+                let dx = f32::from(position.x) - f32::from(last.x);
+                let dy = f32::from(position.y) - f32::from(last.y);
+                self.camera.pan = point(
+                    px(f32::from(self.camera.pan.x) + dx),
+                    px(f32::from(self.camera.pan.y) + dy),
+                );
+                self.drag = Some(DragState::Pan { last: position });
+                cx.notify();
+            }
+            Some(DragState::Lasso { start, .. }) => {
+                let current = self.screen_to_world(bounds, position);
+                self.drag = Some(DragState::Lasso { start, current });
+                cx.notify();
+            }
+            None => {}
+        }
+    }
+
+    pub(crate) fn mouse_up(&mut self, cx: &mut Context<Self>) {
+        if let Some(DragState::Lasso { start, current }) = self.drag.take() {
+            let min = Vec2::new(start.x.min(current.x), start.y.min(current.y));
+            let max = Vec2::new(start.x.max(current.x), start.y.max(current.y));
+            self.selected_nodes = self
+                .nodes
+                .iter()
+                .filter(|node| {
+                    self.positions.get(&node.id).is_some_and(|position| {
+                        position.x <= max.x
+                            && position.x + NODE_SIZE.x >= min.x
+                            && position.y <= max.y
+                            && position.y + NODE_SIZE.y >= min.y
+                    })
+                })
+                .map(|node| node.id)
+                .collect();
+        }
+        self.drag = None;
+        cx.notify();
+    }
+
+    pub(crate) fn scroll(&mut self, delta_y: f32, cx: &mut Context<Self>) {
+        let factor = (1.0 + delta_y * 0.0015).clamp(0.5, 2.0);
+        self.camera.zoom = (self.camera.zoom * factor).clamp(0.15, 2.5);
+        cx.notify();
     }
 
     /// Coalesces rapid edits into a single re-index.
@@ -283,6 +488,9 @@ impl Render for GridBoxView {
             .on_action(cx.listener(|view, _: &ToggleLayoutMode, _window, cx| {
                 view.toggle_layout_mode(cx);
             }))
+            .on_action(cx.listener(|view, _: &PinSelectedNodes, _window, cx| {
+                view.pin_selected(cx);
+            }))
             .size_full()
             .bg(background)
             .child(canvas_element::render_canvas(cx.entity(), labels))
@@ -314,4 +522,9 @@ fn layout_for(mode: GridLayoutMode, nodes: &[GridNode], edges: &[GridEdge]) -> l
         GridLayoutMode::StructuredGrid => layout::structured_grid(nodes, edges),
         GridLayoutMode::ForceDirectedGraph => layout::force_directed(nodes, edges),
     }
+}
+
+/// A stable, human-readable key for a project path, used for persistence.
+fn path_key(path: &ProjectPath) -> String {
+    path.path.as_std_path().to_string_lossy().replace('\\', "/")
 }

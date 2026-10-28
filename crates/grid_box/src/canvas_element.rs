@@ -5,11 +5,12 @@
 //! Nodes and edges are frustum-culled to the viewport, and node labels are
 //! only shaped above a zoom threshold (level of detail), cached across frames.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use gpui::{
-    App, Bounds, Entity, Font, Hsla, IntoElement, Pixels, Point, ShapedLine, SharedString,
-    TextAlign, TextRun, Window, canvas, fill, point, px, size,
+    App, Bounds, DispatchPhase, Entity, Font, Hsla, IntoElement, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, Pixels, Point, ScrollDelta, ScrollWheelEvent, ShapedLine,
+    SharedString, TextAlign, TextRun, Window, canvas, fill, point, px, size,
 };
 use theme::ActiveTheme;
 use util::ResultExt as _;
@@ -38,13 +39,17 @@ struct CanvasState {
     edges: Vec<(Point<Pixels>, Point<Pixels>)>,
     node_labels: Vec<(Bounds<Pixels>, ShapedLine)>,
     cluster_titles: Vec<(Point<Pixels>, ShapedLine)>,
+    selected: HashSet<NodeId>,
+    lasso: Option<Bounds<Pixels>>,
 }
 
 /// Renders the Grid-Box graph for `view`, using `labels` to cache shaped text.
 pub fn render_canvas(view: Entity<GridBoxView>, labels: Entity<LabelCache>) -> impl IntoElement {
+    let prepaint_view = view.clone();
+    let paint_view = view;
     canvas(
-        move |bounds, window, cx| prepaint(bounds, &view, &labels, window, cx),
-        paint,
+        move |bounds, window, cx| prepaint(bounds, &prepaint_view, &labels, window, cx),
+        move |bounds, state, window, cx| paint(bounds, state, &paint_view, window, cx),
     )
 }
 
@@ -55,7 +60,7 @@ fn prepaint(
     window: &mut Window,
     cx: &mut App,
 ) -> CanvasState {
-    let (nodes, edges, positions, clusters, camera) = {
+    let (nodes, edges, positions, clusters, camera, selected, lasso) = {
         let view = view.read(cx);
         (
             view.nodes().to_vec(),
@@ -63,6 +68,8 @@ fn prepaint(
             view.node_positions().clone(),
             view.cluster_bounds().to_vec(),
             view.camera(),
+            view.selected_nodes().clone(),
+            view.lasso_rect(),
         )
     };
 
@@ -158,16 +165,37 @@ fn prepaint(
         edges: visible_edges,
         node_labels,
         cluster_titles,
+        selected,
+        lasso: lasso.map(|(start, current)| {
+            let min = to_screen(Vec2::new(start.x.min(current.x), start.y.min(current.y)));
+            let max = to_screen(Vec2::new(start.x.max(current.x), start.y.max(current.y)));
+            Bounds::new(
+                point(px(f32::from(min.x).min(f32::from(max.x))), px(f32::from(min.y).min(f32::from(max.y)))),
+                size(
+                    px((f32::from(max.x) - f32::from(min.x)).abs()),
+                    px((f32::from(max.y) - f32::from(min.y)).abs()),
+                ),
+            )
+        }),
     }
 }
 
-fn paint(bounds: Bounds<Pixels>, state: CanvasState, window: &mut Window, cx: &mut App) {
+fn paint(
+    bounds: Bounds<Pixels>,
+    state: CanvasState,
+    view: &Entity<GridBoxView>,
+    window: &mut Window,
+    cx: &mut App,
+) {
     let colors = cx.theme().colors();
     let cluster_fill = colors.surface_background;
     let cluster_border = colors.border_variant;
     let node_fill = colors.elevated_surface_background;
     let node_border = colors.border;
     let edge_color = colors.border_variant;
+    let selected_border = colors.border_selected;
+    let lasso_fill = colors.drop_target_background;
+    let lasso_border = colors.border_focused;
 
     window.paint_layer(bounds, |window| {
         for (cluster_bounds, _) in &state.clusters {
@@ -183,12 +211,25 @@ fn paint(bounds: Bounds<Pixels>, state: CanvasState, window: &mut Window, cx: &m
             paint_edge(window, *from, *to, edge_color);
         }
 
-        for (node_bounds, _, _) in &state.nodes {
+        for (node_bounds, _, id) in &state.nodes {
+            let border = if state.selected.contains(id) {
+                selected_border
+            } else {
+                node_border
+            };
             window.paint_quad(
                 fill(*node_bounds, node_fill)
                     .corner_radii(px(NODE_RADIUS))
                     .border_widths(px(1.5))
-                    .border_color(node_border),
+                    .border_color(border),
+            );
+        }
+
+        if let Some(lasso) = state.lasso {
+            window.paint_quad(
+                fill(lasso, lasso_fill)
+                    .border_widths(px(1.0))
+                    .border_color(lasso_border),
             );
         }
 
@@ -218,6 +259,62 @@ fn paint(bounds: Bounds<Pixels>, state: CanvasState, window: &mut Window, cx: &m
             )
             .log_err();
         }
+    });
+
+    register_listeners(bounds, view, window, cx);
+}
+
+fn register_listeners(
+    bounds: Bounds<Pixels>,
+    view: &Entity<GridBoxView>,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let down_view = view.clone();
+    window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
+        if phase != DispatchPhase::Bubble {
+            return;
+        }
+        let (button, position) = (event.button, event.position);
+        let (shift, click_count) = (event.modifiers.shift, event.click_count);
+        down_view
+            .update(cx, |view, cx| {
+                view.mouse_down(bounds, button, position, shift, click_count, window, cx);
+            })
+            .ok();
+    });
+
+    let move_view = view.clone();
+    window.on_mouse_event(move |event: &MouseMoveEvent, phase, _window, cx| {
+        if phase != DispatchPhase::Bubble {
+            return;
+        }
+        let position = event.position;
+        move_view
+            .update(cx, |view, cx| view.mouse_move(bounds, position, cx))
+            .ok();
+    });
+
+    let up_view = view.clone();
+    window.on_mouse_event(move |event: &MouseUpEvent, phase, _window, cx| {
+        if phase != DispatchPhase::Bubble || event.button != MouseButton::Left {
+            return;
+        }
+        up_view.update(cx, |view, cx| view.mouse_up(cx)).ok();
+    });
+
+    let scroll_view = view.clone();
+    window.on_mouse_event(move |event: &ScrollWheelEvent, phase, _window, cx| {
+        if phase != DispatchPhase::Bubble {
+            return;
+        }
+        let delta_y = match event.delta {
+            ScrollDelta::Pixels(pixels) => f32::from(pixels.y),
+            ScrollDelta::Lines(lines) => lines.y * 20.0,
+        };
+        scroll_view
+            .update(cx, |view, cx| view.scroll(delta_y, cx))
+            .ok();
     });
 }
 

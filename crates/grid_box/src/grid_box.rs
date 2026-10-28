@@ -5,6 +5,7 @@ pub mod canvas_element;
 pub mod grid_box_view;
 pub mod indexer;
 pub mod layout;
+pub mod persistence;
 
 use gpui::{App, KeyBinding, actions};
 use workspace::Workspace;
@@ -20,16 +21,17 @@ actions!(
         /// Opens the Grid-Box spatial file graph in the active pane.
         ToggleGridBox,
         /// Switches Grid-Box between the structured grid and the force graph.
-        ToggleLayoutMode
+        ToggleLayoutMode,
+        /// Pins the selected Grid-Box nodes at their current positions.
+        PinSelectedNodes
     ]
 );
 
 pub fn init(cx: &mut App) {
-    cx.bind_keys([KeyBinding::new(
-        "tab",
-        ToggleLayoutMode,
-        Some("GridBox"),
-    )]);
+    cx.bind_keys([
+        KeyBinding::new("tab", ToggleLayoutMode, Some("GridBox")),
+        KeyBinding::new("p", PinSelectedNodes, Some("GridBox")),
+    ]);
     cx.observe_new(|workspace: &mut Workspace, window, cx| {
         let Some(window) = window else {
             return;
