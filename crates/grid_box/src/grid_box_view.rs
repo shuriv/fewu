@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::time::Duration;
+
 use gpui::{
     App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, ParentElement,
     Pixels, Point, Render, SharedString, Styled, Subscription, Task, WeakEntity, Window, px,
@@ -7,11 +10,16 @@ use ui::prelude::*;
 use workspace::Workspace;
 use workspace::item::{Item, ItemEvent};
 
-use crate::ToggleGridBox;
 use crate::indexer::{self, SourceFile};
+use crate::layout::{self, ClusterBounds, Vec2};
+use crate::{ToggleGridBox, ToggleLayoutMode};
 
 /// Delay before a content edit triggers a re-index.
-const REINDEX_DEBOUNCE: std::time::Duration = std::time::Duration::from_secs(2);
+const REINDEX_DEBOUNCE: Duration = Duration::from_secs(2);
+/// Duration of the animation between two layout modes.
+const LAYOUT_ANIMATION: Duration = Duration::from_millis(150);
+/// Number of frames in that animation.
+const LAYOUT_ANIMATION_FRAMES: u32 = 10;
 
 /// Identifies a node in the Grid-Box graph.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -77,9 +85,13 @@ pub struct GridBoxView {
     edges: Vec<GridEdge>,
     camera: Camera2D,
     layout_mode: GridLayoutMode,
+    positions: HashMap<NodeId, Vec2>,
+    clusters: Vec<ClusterBounds>,
     _project_subscription: Subscription,
     _index_task: Option<Task<()>>,
     _pending_reindex: Option<Task<()>>,
+    _layout_task: Option<Task<()>>,
+    _layout_animation: Option<Task<()>>,
 }
 
 impl GridBoxView {
@@ -105,9 +117,13 @@ impl GridBoxView {
             edges: Vec::new(),
             camera: Camera2D::default(),
             layout_mode: GridLayoutMode::default(),
+            positions: HashMap::new(),
+            clusters: Vec::new(),
             _project_subscription: project_subscription,
             _index_task: None,
             _pending_reindex: None,
+            _layout_task: None,
+            _layout_animation: None,
         };
         this.reindex(cx);
         this
@@ -144,16 +160,69 @@ impl GridBoxView {
     fn reindex(&mut self, cx: &mut Context<Self>) {
         self._pending_reindex = None;
         let files = self.collect_source_files(cx);
-        let indexing = cx.background_spawn(async move { indexer::index(files) });
+        let mode = self.layout_mode;
+        let indexing = cx.background_spawn(async move {
+            let (nodes, edges) = indexer::index(files);
+            let layout = layout_for(mode, &nodes, &edges);
+            (nodes, edges, layout)
+        });
         self._index_task = Some(cx.spawn(async move |this, cx| {
-            let (nodes, edges) = indexing.await;
+            let (nodes, edges, layout) = indexing.await;
             this.update(cx, |view, cx| {
                 view.nodes = nodes;
                 view.edges = edges;
-                cx.notify();
+                view.animate_to(layout, cx);
             })
             .ok();
         }));
+    }
+
+    /// Recomputes the layout for the current mode on a background thread.
+    fn recompute_layout(&mut self, cx: &mut Context<Self>) {
+        let mode = self.layout_mode;
+        let nodes = self.nodes.clone();
+        let edges = self.edges.clone();
+        let computing = cx.background_spawn(async move { layout_for(mode, &nodes, &edges) });
+        self._layout_task = Some(cx.spawn(async move |this, cx| {
+            let layout = computing.await;
+            this.update(cx, |view, cx| view.animate_to(layout, cx)).ok();
+        }));
+    }
+
+    /// Animates the positions towards `target` over [`LAYOUT_ANIMATION`].
+    /// Starting a new animation cancels the one already running.
+    fn animate_to(&mut self, target: layout::Layout, cx: &mut Context<Self>) {
+        let from = layout::Layout {
+            positions: std::mem::take(&mut self.positions),
+            clusters: std::mem::take(&mut self.clusters),
+        };
+        self._layout_animation = Some(cx.spawn(async move |this, cx| {
+            for frame in 1..=LAYOUT_ANIMATION_FRAMES {
+                cx.background_executor()
+                    .timer(LAYOUT_ANIMATION / LAYOUT_ANIMATION_FRAMES)
+                    .await;
+                let progress = frame as f32 / LAYOUT_ANIMATION_FRAMES as f32;
+                let interpolated = layout::lerp(&from, &target, progress);
+                if this
+                    .update(cx, |view, cx| {
+                        view.positions = interpolated.positions.clone();
+                        view.clusters = interpolated.clusters.clone();
+                        cx.notify();
+                    })
+                    .is_err()
+                {
+                    return;
+                }
+            }
+        }));
+    }
+
+    fn toggle_layout_mode(&mut self, cx: &mut Context<Self>) {
+        self.layout_mode = match self.layout_mode {
+            GridLayoutMode::StructuredGrid => GridLayoutMode::ForceDirectedGraph,
+            GridLayoutMode::ForceDirectedGraph => GridLayoutMode::StructuredGrid,
+        };
+        self.recompute_layout(cx);
     }
 
     /// Coalesces rapid edits into a single re-index.
@@ -184,14 +253,17 @@ impl GridBoxView {
 
 impl Render for GridBoxView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let colors = cx.theme().colors();
+        let background = cx.theme().colors().editor_background;
         let worktree_count = self.project.read(cx).worktrees(cx).count();
         v_flex()
             .id("GridBox")
             .key_context("GridBox")
             .track_focus(&self.focus_handle(cx))
+            .on_action(cx.listener(|view, _: &ToggleLayoutMode, _window, cx| {
+                view.toggle_layout_mode(cx);
+            }))
             .size_full()
-            .bg(colors.editor_background)
+            .bg(background)
             .items_center()
             .justify_center()
             .child(
@@ -223,5 +295,12 @@ impl Item for GridBoxView {
 
     fn to_item_events(event: &Self::Event, f: &mut dyn FnMut(ItemEvent)) {
         f(*event);
+    }
+}
+
+fn layout_for(mode: GridLayoutMode, nodes: &[GridNode], edges: &[GridEdge]) -> layout::Layout {
+    match mode {
+        GridLayoutMode::StructuredGrid => layout::structured_grid(nodes, edges),
+        GridLayoutMode::ForceDirectedGraph => layout::force_directed(nodes, edges),
     }
 }

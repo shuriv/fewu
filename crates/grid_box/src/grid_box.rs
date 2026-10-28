@@ -3,23 +3,32 @@
 
 pub mod grid_box_view;
 pub mod indexer;
+pub mod layout;
 
-use gpui::{App, actions};
+use gpui::{App, KeyBinding, actions};
 use workspace::Workspace;
 
 pub use grid_box_view::{
     Camera2D, EdgeKind, GridBoxView, GridEdge, GridLayoutMode, GridNode, NodeId,
 };
+pub use layout::{ClusterBounds, Layout, LayoutRect, Vec2};
 
 actions!(
     grid_box,
     [
         /// Opens the Grid-Box spatial file graph in the active pane.
-        ToggleGridBox
+        ToggleGridBox,
+        /// Switches Grid-Box between the structured grid and the force graph.
+        ToggleLayoutMode
     ]
 );
 
 pub fn init(cx: &mut App) {
+    cx.bind_keys([KeyBinding::new(
+        "tab",
+        ToggleLayoutMode,
+        Some("GridBox"),
+    )]);
     cx.observe_new(|workspace: &mut Workspace, window, cx| {
         let Some(window) = window else {
             return;
