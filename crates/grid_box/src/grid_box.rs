@@ -1,6 +1,7 @@
 //! The Grid-Box spatial file graph: a native navigator that lays files and
 //! their relationships out on a canvas.
 
+pub mod canvas_element;
 pub mod grid_box_view;
 pub mod indexer;
 pub mod layout;

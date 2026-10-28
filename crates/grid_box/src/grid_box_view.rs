@@ -10,6 +10,7 @@ use ui::prelude::*;
 use workspace::Workspace;
 use workspace::item::{Item, ItemEvent};
 
+use crate::canvas_element::{self, LabelCache};
 use crate::indexer::{self, SourceFile};
 use crate::layout::{self, ClusterBounds, Vec2};
 use crate::{ToggleGridBox, ToggleLayoutMode};
@@ -225,6 +226,26 @@ impl GridBoxView {
         self.recompute_layout(cx);
     }
 
+    pub(crate) fn nodes(&self) -> &[GridNode] {
+        &self.nodes
+    }
+
+    pub(crate) fn edges(&self) -> &[GridEdge] {
+        &self.edges
+    }
+
+    pub(crate) fn node_positions(&self) -> &HashMap<NodeId, Vec2> {
+        &self.positions
+    }
+
+    pub(crate) fn cluster_bounds(&self) -> &[ClusterBounds] {
+        &self.clusters
+    }
+
+    pub(crate) fn camera(&self) -> Camera2D {
+        self.camera
+    }
+
     /// Coalesces rapid edits into a single re-index.
     fn schedule_reindex(&mut self, cx: &mut Context<Self>) {
         self._pending_reindex = Some(cx.spawn(async move |this, cx| {
@@ -252,9 +273,9 @@ impl GridBoxView {
 }
 
 impl Render for GridBoxView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let background = cx.theme().colors().editor_background;
-        let worktree_count = self.project.read(cx).worktrees(cx).count();
+        let labels = window.use_keyed_state("grid-box-labels", cx, |_, _| LabelCache::default());
         v_flex()
             .id("GridBox")
             .key_context("GridBox")
@@ -264,17 +285,7 @@ impl Render for GridBoxView {
             }))
             .size_full()
             .bg(background)
-            .items_center()
-            .justify_center()
-            .child(
-                Label::new(format!(
-                    "Grid-Box — {} worktrees · {} files · {} edges",
-                    worktree_count,
-                    self.nodes.len(),
-                    self.edges.len(),
-                ))
-                .color(Color::Muted),
-            )
+            .child(canvas_element::render_canvas(cx.entity(), labels))
     }
 }
 
