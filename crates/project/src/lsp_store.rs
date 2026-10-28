@@ -114,7 +114,7 @@ use rpc::{
 use semver::Version;
 use serde::Serialize;
 use serde_json::Value;
-use settings::{Settings, SettingsLocation, SettingsStore};
+use settings::{LspActivationMode, Settings, SettingsLocation, SettingsStore};
 use sha2::{Digest, Sha256};
 use snippet::Snippet;
 use std::{
@@ -345,6 +345,8 @@ pub struct LocalLspStore {
     restricted_worktrees_tasks: HashMap<WorktreeId, (Subscription, watch::Receiver<bool>)>,
     all_language_servers_stopped: bool,
     stopped_language_servers: HashSet<LanguageServerName>,
+    lsp_activation: LspActivationMode,
+    last_buffer_edit: Option<Instant>,
 
     buffers_to_refresh_hash_set: HashSet<BufferId>,
     buffers_to_refresh_queue: VecDeque<BufferId>,
@@ -4353,6 +4355,12 @@ impl LspStoreMode {
     }
 }
 
+/// How often the idle watchdog checks whether language servers can be shut down.
+const LSP_IDLE_SHUTDOWN_INTERVAL: Duration = Duration::from_secs(60);
+/// How long language servers may go without a buffer edit before the idle
+/// watchdog shuts them down to reclaim memory.
+const LSP_IDLE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
 pub struct LspStore {
     mode: LspStoreMode,
     last_formatting_failure: Option<String>,
@@ -4365,6 +4373,7 @@ pub struct LspStore {
     active_entry: Option<ProjectEntryId>,
     _maintain_workspace_config: (Task<Result<()>>, watch::Sender<()>),
     _maintain_buffer_languages: Task<()>,
+    _maintain_lsp_idle: Task<()>,
     diagnostic_summaries:
         HashMap<WorktreeId, HashMap<Arc<RelPath>, HashMap<LanguageServerId, DiagnosticSummary>>>,
     pub lsp_server_capabilities: HashMap<LanguageServerId, lsp::ServerCapabilities>,
@@ -4697,6 +4706,9 @@ impl LspStore {
             let (sender, receiver) = watch::channel();
             (Self::maintain_workspace_config(receiver, cx), sender)
         };
+        let lsp_activation = ProjectSettings::get_global(cx)
+            .global_lsp_settings
+            .lsp_activation;
 
         Self {
             mode: LspStoreMode::Local(LocalLspStore {
@@ -4739,8 +4751,10 @@ impl LspStore {
                 buffer_pull_diagnostics_result_ids: HashMap::default(),
                 workspace_pull_diagnostics_result_ids: HashMap::default(),
                 restricted_worktrees_tasks: HashMap::default(),
-                all_language_servers_stopped: false,
+                all_language_servers_stopped: lsp_activation != LspActivationMode::AlwaysActive,
                 stopped_language_servers: HashSet::default(),
+                lsp_activation,
+                last_buffer_edit: None,
                 watched_manifest_filenames: ManifestProvidersStore::global(cx)
                     .manifest_file_names(),
             }),
@@ -4760,6 +4774,7 @@ impl LspStore {
             active_entry: None,
             _maintain_workspace_config,
             _maintain_buffer_languages: Self::maintain_buffer_languages(languages, cx),
+            _maintain_lsp_idle: Self::maintain_lsp_idle_shutdown(cx),
         }
     }
 
@@ -4823,6 +4838,7 @@ impl LspStore {
 
             _maintain_workspace_config,
             _maintain_buffer_languages: Self::maintain_buffer_languages(languages.clone(), cx),
+            _maintain_lsp_idle: Task::ready(()),
         }
     }
 
@@ -5850,6 +5866,31 @@ impl LspStore {
                 // register_buffer_with_language_servers.
                 let buffers = self.buffer_store.read(cx).buffers().collect();
                 self.restart_language_servers_for_buffers(buffers, HashSet::default(), false, cx);
+            }
+        }
+
+        let new_activation = ProjectSettings::get_global(cx)
+            .global_lsp_settings
+            .lsp_activation;
+        if self
+            .as_local()
+            .is_some_and(|local| local.lsp_activation != new_activation)
+        {
+            if let Some(local) = self.as_local_mut() {
+                local.lsp_activation = new_activation;
+            }
+            match new_activation {
+                LspActivationMode::AlwaysActive => {
+                    let all_stopped = self
+                        .as_local()
+                        .is_some_and(|local| local.all_language_servers_stopped);
+                    if all_stopped {
+                        self.restart_all_language_servers(cx);
+                    }
+                }
+                LspActivationMode::OnDemand | LspActivationMode::LazyOnSave => {
+                    self.stop_all_language_servers(cx);
+                }
             }
         }
 
@@ -8887,6 +8928,9 @@ impl LspStore {
         buffer: Entity<Buffer>,
         cx: &mut Context<Self>,
     ) -> Option<()> {
+        if let Some(local) = self.as_local_mut() {
+            local.last_buffer_edit = Some(Instant::now());
+        }
         let language_servers: Vec<_> = buffer.update(cx, |buffer, cx| {
             Some(
                 self.as_local()?
@@ -9013,6 +9057,12 @@ impl LspStore {
         buffer: Entity<Buffer>,
         cx: &mut Context<Self>,
     ) -> Option<()> {
+        if self.as_local().is_some_and(|local| {
+            local.lsp_activation == LspActivationMode::LazyOnSave
+                && local.all_language_servers_stopped
+        }) {
+            self.restart_all_language_servers(cx);
+        }
         let file = File::from_dyn(buffer.read(cx).file())?;
         let worktree_id = file.worktree_id(cx);
         let abs_path = file.as_local()?.abs_path(cx);
@@ -12128,6 +12178,37 @@ impl LspStore {
         // clears `stopped_language_servers` for us.
         let buffers = self.buffer_store.read(cx).buffers().collect();
         self.restart_language_servers_for_buffers(buffers, HashSet::default(), true, cx);
+    }
+
+    /// Whether running language servers have been idle long enough that they
+    /// should be shut down. Only applies when the user opted into lazy startup.
+    fn language_servers_idle(&self) -> bool {
+        let Some(local) = self.as_local() else {
+            return false;
+        };
+        if local.lsp_activation == LspActivationMode::AlwaysActive
+            || local.all_language_servers_stopped
+            || local.language_server_ids.is_empty()
+        {
+            return false;
+        }
+        local
+            .last_buffer_edit
+            .is_some_and(|last_edit| last_edit.elapsed() >= LSP_IDLE_SHUTDOWN_TIMEOUT)
+    }
+
+    fn maintain_lsp_idle_shutdown(cx: &mut Context<Self>) -> Task<()> {
+        cx.spawn(async move |this, cx| loop {
+            cx.background_executor().timer(LSP_IDLE_SHUTDOWN_INTERVAL).await;
+            let alive = this.update(cx, |store, cx| {
+                if store.language_servers_idle() {
+                    store.stop_all_language_servers(cx);
+                }
+            });
+            if alive.is_err() {
+                break;
+            }
+        })
     }
 
     pub fn restart_language_servers_for_buffers(

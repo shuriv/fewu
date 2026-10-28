@@ -226,6 +226,29 @@ pub struct FetchSettings {
     pub pre_release: Option<bool>,
 }
 
+/// When fewu is allowed to start language servers.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    MergeFrom,
+    strum::VariantArray,
+    strum::VariantNames,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LspActivationMode {
+    #[default]
+    OnDemand,
+    LazyOnSave,
+    AlwaysActive,
+}
+
 /// Common language server settings.
 #[with_fallible_options]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, MergeFrom)]
@@ -248,6 +271,10 @@ pub struct GlobalLspSettingsContent {
     pub notifications: Option<LspNotificationSettingsContent>,
     /// Rules for rendering LSP semantic tokens.
     pub semantic_token_rules: Option<SemanticTokenRules>,
+    /// When fewu is allowed to start language servers.
+    ///
+    /// Default: on_demand
+    pub lsp_activation: Option<LspActivationMode>,
 }
 
 #[with_fallible_options]

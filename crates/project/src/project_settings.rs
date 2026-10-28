@@ -24,8 +24,8 @@ pub use settings::DirenvSettings;
 pub use settings::LspSettings;
 use settings::{
     DapSettingsContent, EditorconfigEvent, InvalidSettingsError, LocalSettingsKind,
-    LocalSettingsPath, RegisterSetting, SemanticTokenRules, Settings, SettingsLocation,
-    SettingsStore, parse_json_with_comments, watch_config_file,
+    LocalSettingsPath, LspActivationMode, RegisterSetting, SemanticTokenRules, Settings,
+    SettingsLocation, SettingsStore, parse_json_with_comments, watch_config_file,
 };
 use std::{cell::OnceCell, collections::BTreeMap, path::PathBuf, sync::Arc, time::Duration};
 use task::{DebugTaskFile, TaskTemplates, VsCodeDebugTaskFile, VsCodeTaskFile};
@@ -136,6 +136,9 @@ pub struct GlobalLspSettings {
 
     /// Rules for highlighting semantic tokens.
     pub semantic_token_rules: SemanticTokenRules,
+
+    /// When fewu is allowed to start language servers.
+    pub lsp_activation: LspActivationMode,
 }
 
 impl Default for GlobalLspSettings {
@@ -146,6 +149,7 @@ impl Default for GlobalLspSettings {
             max_buffer_line_length: 20_000,
             notifications: LspNotificationSettings::default(),
             semantic_token_rules: SemanticTokenRules::default(),
+            lsp_activation: LspActivationMode::default(),
         }
     }
 }
@@ -594,6 +598,12 @@ impl Settings for ProjectSettings {
                     .as_ref()
                     .unwrap()
                     .clone(),
+                lsp_activation: content
+                    .global_lsp_settings
+                    .as_ref()
+                    .unwrap()
+                    .lsp_activation
+                    .unwrap(),
             },
             dap: project
                 .dap

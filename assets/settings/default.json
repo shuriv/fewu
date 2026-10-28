@@ -2269,6 +2269,10 @@
   "global_lsp_settings": {
     // Whether to show the LSP servers button in the status bar.
     "button": true,
+    // When fewu is allowed to start language servers. One of "on_demand",
+    // "lazy_on_save", or "always_active". Tree-sitter syntax highlighting never
+    // depends on language servers.
+    "lsp_activation": "on_demand",
     // The maximum amount of time to wait for responses from language servers, in seconds.
     // A value of 0 will result in no timeout being applied.
     //

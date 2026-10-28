@@ -669,6 +669,7 @@
   "When false, forcefully disables the horizontal scrollbar. Otherwise, obey other settings.\n\nDefault: true": "为 false 时，强制停用水平滚动条。否则遵循其他设置。\n\n默认值：true",
   "When false, forcefully disables the vertical scrollbar. Otherwise, obey other settings.\n\nDefault: true": "为 false 时，强制停用垂直滚动条。否则遵循其他设置。\n\n默认值：true",
   "When fetching LSP completions, determines how long to wait for a response of a particular server.\nWhen set to 0, waits indefinitely.\n\nDefault: 0": "获取 LSP 补全时，等待某个服务器响应的时长。设为 0 时无限期等待。\n\n默认值：0",
+  "When fewu is allowed to start language servers.\n\nDefault: on_demand": "fewu 何时可以启动语言服务器。\n\n默认值：on_demand",
   "When to automatically save edited buffers.\n\nDefault: off": "何时自动保存已编辑的缓冲区。\n\n默认值：off",
   "When to populate a new search's query based on the text under the cursor.": "何时根据光标处的文本填充新搜索的查询内容。",
   "When to populate a new search's query based on the text under the cursor.\n\nDefault: always": "何时根据光标处的文本填充新搜索的查询内容。\n\n默认值：always",

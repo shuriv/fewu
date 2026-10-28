@@ -162,6 +162,18 @@ pub fn test_settings() -> &'static str {
             }),
             &mut value,
         );
+        util::merge_non_null_json_value_into(
+            serde_json::json!({
+                // Most tests open buffers and immediately expect the language
+                // server to start, so keep eager startup under test. The
+                // shipped default (assets/settings/default.json) is `on_demand`
+                // so that fewu does not spawn language servers on open.
+                "global_lsp_settings": {
+                    "lsp_activation": "always_active",
+                },
+            }),
+            &mut value,
+        );
         value.as_object_mut().unwrap().remove("languages");
         serde_json::to_string(&value).unwrap()
     });
