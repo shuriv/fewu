@@ -101,7 +101,7 @@ pub fn index(files: Vec<SourceFile>) -> (Vec<GridNode>, Vec<GridEdge>) {
 }
 
 /// Extracts the raw import/module specifiers from a file's text.
-fn extract_imports(path: &Path, text: &str) -> Vec<String> {
+pub(crate) fn extract_imports(path: &Path, text: &str) -> Vec<String> {
     match path
         .extension()
         .and_then(|extension| extension.to_str())

@@ -6,6 +6,7 @@ pub mod grid_box_view;
 pub mod indexer;
 pub mod layout;
 pub mod persistence;
+pub mod skeleton;
 
 use gpui::{App, KeyBinding, actions};
 use workspace::Workspace;

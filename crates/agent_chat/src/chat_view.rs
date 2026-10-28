@@ -631,8 +631,31 @@ impl ChatView {
         crate::session::display_title(&self.session.read(cx).metadata().title)
     }
 
+    /// Expands `@skeleton:<path>` and `@subgraph:<path>` tokens into fenced
+    /// blocks so agents receive compressed architecture instead of whole files.
+    fn expand_compressors(&self, text: &str, cx: &App) -> String {
+        if !text.contains("skeleton:") && !text.contains("subgraph:") {
+            return text.to_string();
+        }
+        let cwd = self.session.read(cx).metadata().cwd.clone();
+        let mut output = String::with_capacity(text.len());
+        let mut rest = text;
+        while let Some(position) = rest.find(char::is_whitespace) {
+            output.push_str(&expand_token(&rest[..position], &cwd));
+            let whitespace_end = rest[position..]
+                .find(|character: char| !character.is_whitespace())
+                .map(|offset| position + offset)
+                .unwrap_or(rest.len());
+            output.push_str(&rest[position..whitespace_end]);
+            rest = &rest[whitespace_end..];
+        }
+        output.push_str(&expand_token(rest, &cwd));
+        output
+    }
+
     fn send(&mut self, _: &Send, window: &mut Window, cx: &mut Context<Self>) {
-        let text = self.composer.read(cx).text(cx);
+        let raw_text = self.composer.read(cx).text(cx);
+        let text = self.expand_compressors(&raw_text, cx);
         if self.session.read(cx).is_deleted() || self.staging_count > 0 {
             return;
         }
@@ -2659,6 +2682,26 @@ impl ChatView {
 
 pub(crate) fn code_font(cx: &App) -> Font {
     ThemeSettings::get_global(cx).buffer_font.clone()
+}
+
+fn expand_token(token: &str, cwd: &std::path::Path) -> String {
+    let Some((kind, path)) = grid_box::skeleton::parse_compressor_token(token) else {
+        return token.to_string();
+    };
+    let absolute = if std::path::Path::new(path).is_absolute() {
+        std::path::PathBuf::from(path)
+    } else {
+        cwd.join(path)
+    };
+    let expanded = match kind {
+        "skeleton" => grid_box::skeleton::skeleton_for_file(&absolute),
+        "subgraph" => grid_box::skeleton::subgraph_for_file(&absolute),
+        _ => None,
+    };
+    match expanded {
+        Some(content) => format!("```\n{content}\n```"),
+        None => token.to_string(),
+    }
 }
 
 fn code_text_style(cx: &App) -> TextStyleRefinement {
