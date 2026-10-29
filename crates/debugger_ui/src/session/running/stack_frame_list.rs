@@ -10,11 +10,15 @@ use gpui::{
     Action, AnyElement, Entity, EventEmitter, FocusHandle, Focusable, FontWeight, ListState,
     Subscription, Task, TaskExt, WeakEntity, list,
 };
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd
 use i18n::{n, t};
 use util::{
     debug_panic,
     paths::{PathStyle, is_absolute},
 };
+=======
+use util::{debug_panic, paths::PathStyle};
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069
 
 use crate::ToggleUserFrames;
 use language::PointUtf16;
@@ -279,6 +283,10 @@ impl StackFrameList {
             }
         };
 
+        // Clear the error on a successful fetch so a transient failure (e.g.
+        // Delve's "unknown goroutine" at boot) doesn't leave a sticky banner.
+        self.error = None;
+
         let worktree_prefixes: Vec<_> = self
             .workspace
             .read_with(cx, |workspace, cx| {
@@ -525,7 +533,8 @@ impl StackFrameList {
                 .filter(|path| {
                     // Since we do not know if we are debugging on the host or (a remote/WSL) target,
                     // we need to check if either the path is absolute as Posix or Windows.
-                    is_absolute(path, PathStyle::Unix) || is_absolute(path, PathStyle::Windows)
+                    let path = Path::new(path);
+                    PathStyle::Unix.is_absolute(path) || PathStyle::Windows.is_absolute(path)
                 })
                 .map(|path| Arc::<Path>::from(Path::new(path)))
         })

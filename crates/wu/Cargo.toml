@@ -1,11 +1,16 @@
 [package]
 description = "fewu — a lightweight, native code editor and agent workspace for low-end machines."
 edition.workspace = true
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
 # The package/binary identifier stays `wu` for now: renaming it also requires
 # updating the Windows installer/auto-updater/CLI, which all hard-code `Wu.exe`.
 # The user-facing product name and config directory are branded `fewu`.
 name = "wu"
 version = "1.1.13"
+=======
+name = "zed"
+version = "1.26.2"
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors.workspace = true
@@ -17,11 +22,6 @@ default-run = "wu"
 workspace = true
 
 [features]
-inspector = [
-    "gpui/inspector",
-    "inspector_ui/inspector",
-    "ui/derive_inspector_reflection",
-]
 tracy = ["ztracing/tracy"]
 # LEAK_BACKTRACE=1 cargo run --features zed/track-project-leak --profile release-fast
 track-project-leak = ["gpui/leak-detection"]
@@ -41,6 +41,12 @@ visual-tests = [
     "gpui_platform/test-support",
     "dep:image",
     "dep:tempfile",
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
+=======
+    "dep:action_log",
+    "dep:agent_servers",
+    "dep:env_logger",
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
     "workspace/test-support",
     "project/test-support",
     "editor/test-support",
@@ -88,7 +94,7 @@ debugger_ui.workspace = true
 diagnostics.workspace = true
 editor.workspace = true
 encoding_selector.workspace = true
-env_logger.workspace = true
+env_logger = { workspace = true, optional = true }
 extension.workspace = true
 extension_host.workspace = true
 extensions_ui.workspace = true
@@ -108,9 +114,12 @@ gpui_platform = { workspace = true, features = [
     "x11",
 ] }
 gpui_tokio.workspace = true
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
 i18n.workspace = true
+=======
+hang_telemetry.workspace = true
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
 image = { workspace = true, optional = true }
-spin = "0.10.0"
 itertools.workspace = true
 rayon.workspace = true
 semver.workspace = true
@@ -132,6 +141,7 @@ language_tools.workspace = true
 languages = { workspace = true, features = ["load-grammars"] }
 libc.workspace = true
 line_ending_selector.workspace = true
+lsp_command_selector.workspace = true
 log.workspace = true
 lsp_locations.workspace = true
 markdown.workspace = true
@@ -154,7 +164,12 @@ proto.workspace = true
 recent_projects.workspace = true
 release_channel.workspace = true
 remote.workspace = true
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
 reqwest.workspace = true
+=======
+repl.workspace = true
+reqwest = { workspace = true, features = ["multipart"] }
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
 reqwest_client.workspace = true
 rope.workspace = true
 search.workspace = true
@@ -197,6 +212,7 @@ zlog_settings.workspace = true
 ztracing.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
 cocoa.workspace = true
 objc.workspace = true
 
@@ -204,13 +220,26 @@ objc.workspace = true
 etw_tracing.workspace = true
 windows.workspace = true
 gpui = { workspace = true, features = ["windows-manifest"] }
+=======
+nix = { workspace = true, features = ["user"] }
 
-[build-dependencies]
-windows_resources = { path = "../windows_resources" }
+[target.'cfg(target_os = "windows")'.dependencies]
+etw_tracing.workspace = true
+windows = { workspace = true, features = ["Win32_System_Console", "Win32_System_Pipes"] }
+gpui = { workspace = true, features = ["profiler", "windows-manifest"] }
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+windows_resources.workspace = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
 gpui = { workspace = true, features = ["wayland", "x11"] }
 ashpd.workspace = true
+=======
+gpui = { workspace = true, features = ["profiler", "wayland", "x11"] }
+ashpd = { workspace = true, features = ["notification"] }
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
 image.workspace = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.build-dependencies]
@@ -223,6 +252,7 @@ pkg-config = "0.3.22"
 [dev-dependencies]
 activity_indicator = { workspace = true, features = ["test-support"] }
 editor = { workspace = true, features = ["test-support"] }
+env_logger.workspace = true
 fs = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }
 image_viewer = { workspace = true, features = ["test-support"] }
@@ -242,6 +272,7 @@ search = { workspace = true, features = ["test-support"] }
 
 [package.metadata.bundle-dev]
 icon = ["resources/app-icon-dev@2x.png", "resources/app-icon-dev.png"]
+<<<<<<< bee48e83547b731edf0cfc009c222603a7317dfd:crates/wu/Cargo.toml
 identifier = "me.farshed.Wu-Dev"
 name = "Wu Dev"
 osx_minimum_system_version = "10.15.7"
@@ -252,6 +283,38 @@ osx_url_schemes = ["wu"]
 icon = ["resources/app-icon@2x.png", "resources/app-icon.png"]
 identifier = "me.farshed.Wu"
 name = "Wu"
+=======
+identifier = "dev.zed.Zed-Dev"
+name = "Zed Dev"
+category = "Developer Tool"
+osx_minimum_system_version = "10.15.7"
+osx_info_plist_exts = ["resources/info/*"]
+osx_url_schemes = ["zed"]
+
+[package.metadata.bundle-nightly]
+icon = ["resources/app-icon-nightly@2x.png", "resources/app-icon-nightly.png"]
+identifier = "dev.zed.Zed-Nightly"
+name = "Zed Nightly"
+category = "Developer Tool"
+osx_minimum_system_version = "10.15.7"
+osx_info_plist_exts = ["resources/info/*"]
+osx_url_schemes = ["zed"]
+
+[package.metadata.bundle-preview]
+icon = ["resources/app-icon-preview@2x.png", "resources/app-icon-preview.png"]
+identifier = "dev.zed.Zed-Preview"
+name = "Zed Preview"
+category = "Developer Tool"
+osx_minimum_system_version = "10.15.7"
+osx_info_plist_exts = ["resources/info/*"]
+osx_url_schemes = ["zed"]
+
+[package.metadata.bundle-stable]
+icon = ["resources/app-icon@2x.png", "resources/app-icon.png"]
+identifier = "dev.zed.Zed"
+name = "Zed"
+category = "Developer Tool"
+>>>>>>> 8f359f919a5a772a299454808101eaca4d02c069:crates/zed/Cargo.toml
 osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["wu"]
