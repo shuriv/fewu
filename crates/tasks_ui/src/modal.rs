@@ -678,12 +678,17 @@ impl PickerDelegate for TasksModalDelegate {
                     if (current_modifiers.alt || self.matches.is_empty()) && !self.prompt.is_empty()
                     {
                         let action = picker::ConfirmInput {
-                            secondary: current_modifiers.secondary(),
+                            secondary: current_modifiers.secondary(cx),
                         }
                         .boxed_clone();
                         this.child({
+<<<<<<< aee5d3ca2a54121e3b2d941a2db50942942c4833
                             let spawn_oneshot_label = if current_modifiers.secondary() {
                                 t!("Spawn Oneshot Without History")
+=======
+                            let spawn_oneshot_label = if current_modifiers.secondary(cx) {
+                                "Spawn Oneshot Without History"
+>>>>>>> a94dd97b48df91ea4ecb77587f4d5974366eda3e
                             } else {
                                 t!("Spawn Oneshot")
                             };
@@ -694,7 +699,7 @@ impl PickerDelegate for TasksModalDelegate {
                                     window.dispatch_action(action.boxed_clone(), cx)
                                 })
                         })
-                    } else if current_modifiers.secondary() {
+                    } else if current_modifiers.secondary(cx) {
                         this.child({
                             let label = if is_recent_selected {
                                 t!("Rerun Without History")
@@ -1059,7 +1064,7 @@ mod tests {
                 LanguageConfig {
                     name: "Test".into(),
                     matcher: (LanguageMatcher {
-                        path_suffixes: vec!["test".to_string()],
+                        path_suffixes: vec!["test".into()],
                         ..LanguageMatcher::default()
                     })
                     .into(),
@@ -1142,7 +1147,7 @@ mod tests {
                     LanguageConfig {
                         name: "TypeScript".into(),
                         matcher: (LanguageMatcher {
-                            path_suffixes: vec!["ts".to_string()],
+                            path_suffixes: vec!["ts".into()],
                             ..LanguageMatcher::default()
                         })
                         .into(),
@@ -1175,7 +1180,7 @@ mod tests {
                     LanguageConfig {
                         name: "Rust".into(),
                         matcher: (LanguageMatcher {
-                            path_suffixes: vec!["rs".to_string()],
+                            path_suffixes: vec!["rs".into()],
                             ..LanguageMatcher::default()
                         })
                         .into(),

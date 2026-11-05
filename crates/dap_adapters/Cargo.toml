@@ -29,8 +29,11 @@ dotenvy.workspace = true
 futures.workspace = true
 fs.workspace = true
 gpui.workspace = true
+<<<<<<< aee5d3ca2a54121e3b2d941a2db50942942c4833
 i18n.workspace = true
 json_dotpath.workspace = true
+=======
+>>>>>>> a94dd97b48df91ea4ecb77587f4d5974366eda3e
 language.workspace = true
 log.workspace = true
 paths.workspace = true

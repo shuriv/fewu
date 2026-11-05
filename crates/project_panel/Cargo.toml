@@ -28,7 +28,6 @@ gpui.workspace = true
 i18n.workspace = true
 itertools.workspace = true
 menu.workspace = true
-pretty_assertions.workspace = true
 project.workspace = true
 schemars.workspace = true
 serde.workspace = true
@@ -52,7 +51,11 @@ wu_actions.workspace = true
 notifications.workspace = true
 fs.workspace = true
 log.workspace = true
+<<<<<<< aee5d3ca2a54121e3b2d941a2db50942942c4833
 walkdir.workspace = true
+=======
+svg_preview.workspace = true
+>>>>>>> a94dd97b48df91ea4ecb77587f4d5974366eda3e
 
 [dev-dependencies]
 client = { workspace = true, features = ["test-support"] }
@@ -61,6 +64,7 @@ editor = { workspace = true, features = ["test-support"] }
 git_ui = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }
 language = { workspace = true, features = ["test-support"] }
+pretty_assertions.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 workspace = { workspace = true, features = ["test-support"] }

@@ -156,12 +156,12 @@ float edge_fade_alpha(float2 position, EdgeFadeParams fade) {
 
 // Convert linear RGB to sRGB
 float3 linear_to_srgb(float3 color) {
-    return pow(color, float3(2.2, 2.2, 2.2));
+    return pow(color, float3(1.0 / 2.2, 1.0 / 2.2, 1.0 / 2.2));
 }
 
 // Convert sRGB to linear RGB
 float3 srgb_to_linear(float3 color) {
-    return pow(color, float3(1.0 / 2.2, 1.0 / 2.2, 1.0 / 2.2));
+    return pow(color, float3(2.2, 2.2, 2.2));
 }
 
 /// Hsla to linear RGBA conversion.
@@ -1174,10 +1174,10 @@ float4 underline_fragment(UnderlineFragmentInput input): SV_Target {
 struct MonochromeSprite {
     uint order;
     uint pad;
+    AtlasTile tile;
     Bounds bounds;
     Bounds content_mask;
     Hsla color;
-    AtlasTile tile;
     TransformationMatrix transformation;
     EdgeFadeParams fade;
 };
@@ -1273,14 +1273,18 @@ float image_mask_alpha(float2 position, ImageAlphaMaskParams mask) {
 struct PolychromeSprite {
     uint order;
     uint pad;
+    AtlasTile tile;
     uint grayscale;
     float opacity;
     Bounds bounds;
     Bounds content_mask;
     Corners corner_radii;
+<<<<<<< aee5d3ca2a54121e3b2d941a2db50942942c4833
     EdgeFadeParams fade;
     ImageAlphaMaskParams alpha_mask;
     AtlasTile tile;
+=======
+>>>>>>> a94dd97b48df91ea4ecb77587f4d5974366eda3e
 };
 
 struct PolychromeSpriteVertexOutput {

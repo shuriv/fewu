@@ -18,7 +18,7 @@ name = "remote_server"
 
 [features]
 default = []
-debug-embed = ["dep:rust-embed"]
+debug-embed = ["dep:rust-embed", "util/debug-embed"]
 test-support = ["fs/test-support"]
 
 [dependencies]
@@ -65,6 +65,11 @@ shellexpand.workspace = true
 smol.workspace = true
 sysinfo.workspace = true
 task.workspace = true
+<<<<<<< aee5d3ca2a54121e3b2d941a2db50942942c4833
+=======
+telemetry.workspace = true
+terminal.workspace = true
+>>>>>>> a94dd97b48df91ea4ecb77587f4d5974366eda3e
 util.workspace = true
 watch.workspace = true
 worktree.workspace = true
@@ -72,11 +77,21 @@ thiserror.workspace = true
 rayon.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
 [target.'cfg(windows)'.dependencies]
-windows.workspace = true
 gpui = { workspace = true, features = ["windows-manifest"] }
 
 [dev-dependencies]
+<<<<<<< aee5d3ca2a54121e3b2d941a2db50942942c4833
+=======
+acp_thread.workspace = true
+action_log.workspace = true
+agent = { workspace = true, features = ["test-support"] }
+agent-client-protocol.workspace = true
+agent_servers.workspace = true
+>>>>>>> a94dd97b48df91ea4ecb77587f4d5974366eda3e
 client = { workspace = true, features = ["test-support"] }
 clock = { workspace = true, features = ["test-support"] }
 editor = { workspace = true, features = ["test-support"] }
@@ -98,8 +113,7 @@ workspace = { workspace = true, features = ["test-support"] }
 zlog.workspace = true
 
 [build-dependencies]
-cargo_toml.workspace = true
-toml.workspace = true
+toml_edit.workspace = true
 
 [package.metadata.cargo-shear]
 ignored = ["rust-embed"]
