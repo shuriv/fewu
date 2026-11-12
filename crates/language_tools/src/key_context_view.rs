@@ -1,7 +1,6 @@
 use gpui::{
     Action, App, AppContext as _, Entity, EventEmitter, FocusHandle, Focusable,
     KeyBindingContextPredicate, KeyContext, Keystroke, MouseButton, Render, Subscription, Task,
-    actions,
 };
 use i18n::t;
 use itertools::Itertools;
@@ -13,14 +12,7 @@ use ui::{
     h_flex, px, v_flex,
 };
 use workspace::{Item, SplitDirection, Workspace};
-
-actions!(
-    dev,
-    [
-        /// Opens the key context view for debugging keybindings.
-        OpenKeyContextView
-    ]
-);
+use zed_actions::dev::OpenKeyContextView;
 
 pub fn init(cx: &mut App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
@@ -54,9 +46,14 @@ impl KeyContextView {
             let mut possibilities = cx.all_bindings_for_input(&pending);
             possibilities.reverse();
             this.last_keystrokes = Some(
-                json!(pending.iter().map(|p| p.unparse()).join(" "))
-                    .to_string()
-                    .into(),
+                json!(
+                    pending
+                        .iter()
+                        .map(|p| p.unparse(cx.platform_info().os))
+                        .join(" ")
+                )
+                .to_string()
+                .into(),
             );
             this.context_stack = e.context_stack.clone();
             this.last_possibilities = possibilities
@@ -252,9 +249,15 @@ impl Render for KeyContextView {
             .child(Label::new(t!("Last Keystroke")).mt_4().size(LabelSize::Large))
             .when_some(self.pending_keystrokes.as_ref(), |el, keystrokes| {
                 el.child(
+<<<<<<< eb4351930270422c44d9786c2a4924e2acb0382f
                     Label::new(t!(
                         "Waiting for more input: {keystrokes}",
                         keystrokes = keystrokes.iter().map(|k| k.unparse()).join(" ")
+=======
+                    Label::new(format!(
+                        "Waiting for more input: {}",
+                        keystrokes.iter().map(|k| k.unparse(cx.platform_info().os)).join(" ")
+>>>>>>> d2b6b1997b3993e835ca2b0c99473f6ace3d4285
                     ))
                     .ml(px(12.)),
                 )

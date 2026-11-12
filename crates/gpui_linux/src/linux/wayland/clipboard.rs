@@ -10,11 +10,16 @@ use strum::IntoEnumIterator;
 use wayland_client::{Connection, protocol::wl_data_offer::WlDataOffer};
 use wayland_protocols::wp::primary_selection::zv1::client::zwp_primary_selection_offer_v1::ZwpPrimarySelectionOfferV1;
 
+<<<<<<< eb4351930270422c44d9786c2a4924e2acb0382f
 use crate::linux::{
     WaylandClientStatePtr,
     platform::{PIPE_READ_TIMEOUT, paths_from_uri_list, read_fd_with_timeout, uri_list_from_paths},
 };
 use gpui::{ClipboardEntry, ClipboardItem, ExternalPaths, Image, ImageFormat, hash};
+=======
+use crate::linux::platform::{PIPE_READ_TIMEOUT, read_fd_with_timeout};
+use gpui::{ClipboardEntry, ClipboardItem, Image, ImageFormat, hash};
+>>>>>>> d2b6b1997b3993e835ca2b0c99473f6ace3d4285
 
 /// Text mime types that we'll offer to other programs.
 pub(crate) const TEXT_MIME_TYPES: [&str; 3] =
@@ -26,7 +31,7 @@ pub(crate) const ALLOWED_TEXT_MIME_TYPES: [&str; 2] = ["text/plain;charset=utf-8
 
 pub(crate) struct Clipboard {
     connection: Connection,
-    loop_handle: LoopHandle<'static, WaylandClientStatePtr>,
+    loop_handle: LoopHandle<'static, ()>,
     self_mime: String,
 
     // Internal clipboard
@@ -161,10 +166,7 @@ impl<T: ReceiveData> DataOffer<T> {
 }
 
 impl Clipboard {
-    pub fn new(
-        connection: Connection,
-        loop_handle: LoopHandle<'static, WaylandClientStatePtr>,
-    ) -> Self {
+    pub fn new(connection: Connection, loop_handle: LoopHandle<'static, ()>) -> Self {
         Self {
             connection,
             loop_handle,

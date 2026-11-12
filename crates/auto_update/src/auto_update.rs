@@ -3,7 +3,11 @@ use client::Client;
 use db::kvp::KeyValueStore;
 use futures_lite::StreamExt;
 use gpui::{
+<<<<<<< eb4351930270422c44d9786c2a4924e2acb0382f
     App, AppContext as _, AsyncApp, BackgroundExecutor, Context, Entity, Global, PromptButton,
+=======
+    App, AppContext as _, AsyncApp, BackgroundExecutor, Context, Entity, EventEmitter, Global,
+>>>>>>> d2b6b1997b3993e835ca2b0c99473f6ace3d4285
     Task, TaskExt, Window, actions,
 };
 use http_client::{HttpClient, HttpClientWithUrl};
@@ -210,6 +214,11 @@ impl AutoUpdateStatus {
     pub fn is_updated(&self) -> bool {
         matches!(self, Self::Updated { .. })
     }
+}
+
+pub enum AutoUpdateEvent {
+    /// A manual check received a release response and found no newer version.
+    UpToDate,
 }
 
 pub struct AutoUpdater {
@@ -480,6 +489,8 @@ impl UpdateCheckType {
         self == Self::Manual
     }
 }
+
+impl EventEmitter<AutoUpdateEvent> for AutoUpdater {}
 
 impl AutoUpdater {
     pub fn get(cx: &mut App) -> Option<Entity<Self>> {
@@ -826,11 +837,15 @@ impl AutoUpdater {
 
         let Some(newer_version) = newer_version else {
             this.update(cx, |this, cx| {
-                let status = match previous_status {
+                this.status = match previous_status {
                     AutoUpdateStatus::Updated { .. } => previous_status,
-                    _ => AutoUpdateStatus::Idle,
+                    _ => {
+                        if this.update_check_type.is_manual() {
+                            cx.emit(AutoUpdateEvent::UpToDate);
+                        }
+                        AutoUpdateStatus::Idle
+                    }
                 };
-                this.status = status;
                 cx.notify();
             });
             return Ok(());

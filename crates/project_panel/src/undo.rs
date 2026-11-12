@@ -132,6 +132,7 @@
 
 use crate::{ProjectPanel, RemovalKind};
 use anyhow::{Context, Result, anyhow};
+use client::{ErrorCode, ErrorExt as _, RpcError};
 use fs::{TrashId, TrashRestoreError};
 use futures::channel::mpsc;
 use gpui::{
@@ -425,7 +426,7 @@ impl UndoMessage {
     }
 }
 
-fn project_path_display(
+pub(crate) fn project_path_display(
     project: &Project,
     project_path: &ProjectPath,
     path_style: PathStyle,
@@ -434,6 +435,18 @@ fn project_path_display(
     project
         .short_full_path_for_project_path(project_path, cx)
         .unwrap_or_else(|| project_path.path.display(path_style).to_string())
+}
+
+pub(crate) fn already_exists_error(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        if let Some(io_err) = cause.downcast_ref::<std::io::Error>() {
+            io_err.kind() == std::io::ErrorKind::AlreadyExists
+        } else if let Some(rpc_error) = cause.downcast_ref::<RpcError>() {
+            rpc_error.error_code() == ErrorCode::AlreadyExists
+        } else {
+            false
+        }
+    })
 }
 
 impl Inner {
@@ -660,6 +673,7 @@ impl Inner {
         });
 
         res?.await.map_err(|err| {
+<<<<<<< eb4351930270422c44d9786c2a4924e2acb0382f
             // It is possible for `RealFs::rename` to return an error other than
             // `io::Error` when the file already exists, hence why we're also
             // checking if the error contains the "already exists" string.
@@ -684,6 +698,12 @@ impl Inner {
                     )
                 };
                 anyhow!(message)
+=======
+            if already_exists_error(&err) {
+                anyhow!(
+                    "Failed to {operation} `{from_name}` to `{to_name}`. A file or folder already exists there."
+                )
+>>>>>>> d2b6b1997b3993e835ca2b0c99473f6ace3d4285
             } else {
                 err
             }

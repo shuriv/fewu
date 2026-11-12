@@ -11,10 +11,14 @@ workspace = true
 [lib]
 path = "src/notifications.rs"
 doctest = false
+test = false
 
 [features]
 test-support = [
+<<<<<<< eb4351930270422c44d9786c2a4924e2acb0382f
 
+=======
+>>>>>>> d2b6b1997b3993e835ca2b0c99473f6ace3d4285
     "gpui/test-support",
     "rpc/test-support",
 ]
@@ -33,12 +37,6 @@ ui.workspace = true
 util.workspace = true
 workspace.workspace = true
 wu_actions.workspace = true
-
-[dev-dependencies]
-client = { workspace = true, features = ["test-support"] }
-gpui = { workspace = true, features = ["test-support"] }
-rpc = { workspace = true, features = ["test-support"] }
-util = { workspace = true, features = ["test-support"] }
 
 [package.metadata.cargo-shear]
 ignored = ["component"]
