@@ -775,6 +775,7 @@ impl RemoteServerPickerDelegate {
         };
         Some(
             h_flex()
+                .debug_selector(|| format!("remote-server-{}", server.display_host()))
                 .w_full()
                 .pt_1()
                 .px_3()
@@ -955,6 +956,7 @@ impl PickerDelegate for RemoteServerPickerDelegate {
                 let Some(server_entry) = self.state.servers.get(*server) else {
                     return;
                 };
+                cx.emit(DismissEvent);
                 match server_entry {
                     RemoteEntry::Project {
                         connection, index, ..
@@ -1205,13 +1207,27 @@ impl RemoteServerProjects {
         let focus_handle = cx.focus_handle();
         let remote_server_projects = cx.weak_entity();
         let default_picker = cx.new(|cx| {
+<<<<<<< 595a5e8dbb0dad24937f4abc7bcfdc296a6b5723
             let delegate =
                 RemoteServerPickerDelegate::new(remote_server_projects, &BTreeSet::new(), cx);
             Picker::list(delegate, window, cx).embedded()
+=======
+            let delegate = RemoteServerPickerDelegate::new(
+                remote_server_projects,
+                &BTreeSet::new(),
+                false,
+                true,
+                cx,
+            );
+            Picker::list(delegate, window, cx)
+                .list_measure_all()
+                .show_scrollbar(true)
+                .embedded()
+>>>>>>> 7a3b4b54ff896580951c7ad774b7af7d8f83b0e1
         });
         let mut read_ssh_config = RemoteSettings::get_global(cx).read_ssh_config;
         let ssh_config_updates = if read_ssh_config {
-            spawn_ssh_config_watch(fs.clone(), cx)
+            spawn_ssh_config_watch(fs.clone(), window, cx)
         } else {
             Task::ready(())
         };
@@ -1222,7 +1238,8 @@ impl RemoteServerProjects {
                 if read_ssh_config != new_read_ssh_config {
                     read_ssh_config = new_read_ssh_config;
                     if read_ssh_config {
-                        recent_projects.ssh_config_updates = spawn_ssh_config_watch(fs.clone(), cx);
+                        recent_projects.ssh_config_updates =
+                            spawn_ssh_config_watch(fs.clone(), window, cx);
                     } else {
                         recent_projects.ssh_config_servers.clear();
                         recent_projects.ssh_config_updates = Task::ready(());
@@ -2055,7 +2072,6 @@ impl RemoteServerProjects {
                     let distro_name = distro_name.clone();
                     move |_, _: &menu::Confirm, window, cx| {
                         remove_wsl_distro(cx.entity(), index, distro_name.clone(), window, cx);
-                        cx.focus_self(window);
                     }
                 }))
                 .child(
@@ -2067,7 +2083,6 @@ impl RemoteServerProjects {
                         .child(Label::new(t!("Remove Distro")).color(Color::Error))
                         .on_click(cx.listener(move |_, _, window, cx| {
                             remove_wsl_distro(cx.entity(), index, distro_name.clone(), window, cx);
-                            cx.focus_self(window);
                         })),
                 )
         })
@@ -2216,7 +2231,6 @@ impl RemoteServerProjects {
                                 window,
                                 cx,
                             );
-                            cx.focus_self(window);
                         }
                     }))
                     .child(
@@ -2234,7 +2248,6 @@ impl RemoteServerProjects {
                                     window,
                                     cx,
                                 );
-                                cx.focus_self(window);
                             })),
                     )
             })
@@ -2285,7 +2298,6 @@ impl RemoteServerProjects {
         _cx: &mut Context<Self>,
     ) -> impl IntoElement {
         v_flex()
-            .min_h(rems(20.))
             .size_full()
             .child(self.default_picker.clone())
             .into_any_element()
@@ -2310,7 +2322,11 @@ impl RemoteServerProjects {
     }
 }
 
-fn spawn_ssh_config_watch(fs: Arc<dyn Fs>, cx: &Context<RemoteServerProjects>) -> Task<()> {
+fn spawn_ssh_config_watch(
+    fs: Arc<dyn Fs>,
+    window: &mut Window,
+    cx: &Context<RemoteServerProjects>,
+) -> Task<()> {
     enum ConfigSource {
         User(String),
         Global(String),
@@ -2342,7 +2358,7 @@ fn spawn_ssh_config_watch(fs: Arc<dyn Fs>, cx: &Context<RemoteServerProjects>) -
     // Combine into a single stream so that only one is parsed at once.
     let mut merged_stream = futures::stream::select_all(streams);
 
-    cx.spawn(async move |remote_server_projects, cx| {
+    cx.spawn_in(window, async move |remote_server_projects, cx| {
         let _tasks = tasks; // Keeps the background watchers alive
         let mut global_hosts = BTreeSet::default();
         let mut user_hosts = BTreeSet::default();
@@ -2359,17 +2375,21 @@ fn spawn_ssh_config_watch(fs: Arc<dyn Fs>, cx: &Context<RemoteServerProjects>) -
 
             // Sync to Model
             if remote_server_projects
-                .update(cx, |project, cx| {
+                .update_in(cx, |project, window, cx| {
                     project.ssh_config_servers = global_hosts
                         .iter()
                         .chain(user_hosts.iter())
                         .map(SharedString::from)
                         .collect();
+<<<<<<< 595a5e8dbb0dad24937f4abc7bcfdc296a6b5723
                     let ssh_config_servers = project.ssh_config_servers.clone();
                     project.default_picker.update(cx, |picker, cx| {
                         picker.delegate.reload(&ssh_config_servers, cx);
                         cx.notify();
                     });
+=======
+                    project.refresh_default_picker(window, cx);
+>>>>>>> 7a3b4b54ff896580951c7ad774b7af7d8f83b0e1
                     cx.notify();
                 })
                 .is_err()
@@ -2479,7 +2499,7 @@ mod filter_tests {
 }
 
 #[cfg(test)]
-mod create_host_tests {
+mod tests {
     use super::*;
     use gpui::TestAppContext;
     use workspace::AppState;
@@ -2491,6 +2511,102 @@ mod create_host_tests {
             editor::init(cx);
             state
         })
+    }
+
+    #[gpui::test]
+    async fn test_ssh_config_changes_refresh_rendered_hosts(cx: &mut TestAppContext) {
+        let app_state = init_test(cx);
+        let fs = app_state.fs.as_fake();
+        let config_path = user_ssh_config_file();
+        fs.create_dir(config_path.parent().expect("SSH config has a parent"))
+            .await
+            .expect("create SSH config directory");
+        fs.insert_file(&config_path, Vec::new()).await;
+
+        let project = Project::test(fs.clone(), [], cx).await;
+        let (multi_workspace, cx) = cx.add_window_view(|window, cx| {
+            let workspace = cx.new(|cx| Workspace::test_new(project, window, cx));
+            MultiWorkspace::new(workspace, window, cx)
+        });
+        let workspace =
+            multi_workspace.read_with(cx, |multi_workspace, _| multi_workspace.workspace().clone());
+        workspace.update_in(cx, |workspace, window, cx| {
+            let weak = cx.weak_entity();
+            workspace.toggle_modal(window, cx, |window, cx| {
+                RemoteServerProjects::new(false, fs.clone(), window, weak, cx)
+            });
+        });
+        cx.run_until_parked();
+
+        // Settle the initial picker refresh before discovery changes its item count.
+        fs.insert_file(&config_path, b"Host alpha beta\n".to_vec())
+            .await;
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("remote-server-alpha").is_some());
+        assert!(cx.debug_bounds("remote-server-beta").is_some());
+
+        fs.insert_file(&config_path, b"Host beta\n".to_vec()).await;
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("remote-server-alpha").is_none());
+        assert!(cx.debug_bounds("remote-server-beta").is_some());
+
+        fs.insert_file(&config_path, Vec::new()).await;
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("remote-server-beta").is_none());
+    }
+
+    #[gpui::test]
+    async fn test_ssh_config_changes_refresh_filtered_hosts(cx: &mut TestAppContext) {
+        let app_state = init_test(cx);
+        let fs = app_state.fs.as_fake();
+        let config_path = user_ssh_config_file();
+        fs.create_dir(config_path.parent().expect("SSH config has a parent"))
+            .await
+            .expect("create SSH config directory");
+        fs.insert_file(&config_path, b"Host beta\n".to_vec()).await;
+
+        let project = Project::test(fs.clone(), [], cx).await;
+        let (multi_workspace, cx) = cx.add_window_view(|window, cx| {
+            let workspace = cx.new(|cx| Workspace::test_new(project, window, cx));
+            MultiWorkspace::new(workspace, window, cx)
+        });
+        let workspace =
+            multi_workspace.read_with(cx, |multi_workspace, _| multi_workspace.workspace().clone());
+        let modal = workspace.update_in(cx, |workspace, window, cx| {
+            let weak = cx.weak_entity();
+            workspace.toggle_modal(window, cx, |window, cx| {
+                RemoteServerProjects::new(false, fs.clone(), window, weak, cx)
+            });
+            workspace
+                .active_modal::<RemoteServerProjects>(cx)
+                .expect("remote projects modal is open")
+        });
+        cx.run_until_parked();
+        modal.update_in(cx, |modal, window, cx| {
+            modal.default_picker.update(cx, |picker, cx| {
+                picker.set_query("be", window, cx);
+            });
+        });
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("remote-server-beta").is_some());
+
+        fs.insert_file(&config_path, b"Host alpha beta berry\n".to_vec())
+            .await;
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("remote-server-alpha").is_none());
+        assert!(cx.debug_bounds("remote-server-beta").is_some());
+        assert!(cx.debug_bounds("remote-server-berry").is_some());
+
+        fs.insert_file(&config_path, b"Host alpha berry\n".to_vec())
+            .await;
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("remote-server-alpha").is_none());
+        assert!(cx.debug_bounds("remote-server-beta").is_none());
+        assert!(cx.debug_bounds("remote-server-berry").is_some());
+        assert_eq!(
+            modal.read_with(cx, |modal, cx| modal.default_picker.read(cx).query(cx)),
+            "be"
+        );
     }
 
     #[gpui::test]
