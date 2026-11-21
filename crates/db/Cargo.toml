@@ -27,8 +27,13 @@ release_channel.workspace = true
 sqlez.workspace = true
 sqlez_macros.workspace = true
 util.workspace = true
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
 uuid.workspace = true
 wu_env_vars.workspace = true
+=======
+uuid = { workspace = true, features = ["v5", "v7"] }
+zed_env_vars.workspace = true
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }

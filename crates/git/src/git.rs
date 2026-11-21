@@ -128,6 +128,13 @@ actions!(
         /// Toggles whether the commit message editor fills all the available
         /// vertical space within the git panel.
         ToggleFillCommitEditor,
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
+=======
+        /// Toggles whether the commit message editor is shown in the git panel.
+        ToggleCommitEditor,
+        /// Generates a commit message using AI.
+        GenerateCommitMessage,
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
         /// Initializes a new git repository.
         Init,
         /// Opens all modified files in the editor.
@@ -143,6 +150,8 @@ actions!(
         AddToGitInfoExclude,
         /// Copies the current branch name to the clipboard.
         CopyBranchName,
+        /// Creates a tag at HEAD.
+        CreateTagAtHead,
     ]
 );
 
@@ -156,6 +165,11 @@ pub struct RenameBranch {
     /// Default: the current branch.
     #[serde(default)]
     pub branch: Option<String>,
+}
+
+/// Trim. Then replace ` `  with `-`.
+pub fn normalize_branch_name(query: &str) -> String {
+    query.trim().replace(' ', "-")
 }
 
 /// Restores a file to its last committed state, discarding local changes.
@@ -371,6 +385,13 @@ impl From<Oid> for usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_normalize_branch_name() {
+        assert_eq!(normalize_branch_name(" branch-name "), "branch-name");
+        assert_eq!(normalize_branch_name("branch name"), "branch-name");
+        assert_eq!(normalize_branch_name("  branch  name  "), "branch--name");
+    }
 
     #[test]
     fn parses_short_sha1_oid_by_padding_trailing_nibbles() {

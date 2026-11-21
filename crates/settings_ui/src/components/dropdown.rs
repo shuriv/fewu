@@ -101,6 +101,7 @@ impl RenderOnce for EnumVariantDropdown {
             })
         });
 
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
         DropdownMenu::new(self.id, current_value_label, context_menu)
             .when_some(self.aria_label, |this, label| this.aria_label(label))
             .when_some(self.aria_description, |this, description| {
@@ -114,6 +115,31 @@ impl RenderOnce for EnumVariantDropdown {
                 y: px(2.0),
             })
             .into_any_element()
+=======
+        DropdownMenu::new(
+            self.id,
+            if self.should_do_title_case {
+                current_value_label.to_title_case()
+            } else {
+                current_value_label.to_string()
+            },
+            context_menu,
+        )
+        .when_some(self.aria_label, |this, label| this.aria_label(label))
+        .when_some(self.aria_description, |this, description| {
+            this.aria_description(description)
+        })
+        .disabled(self.disabled)
+        .when_some(self.tab_index, |elem, tab_index| elem.tab_index(tab_index))
+        .trigger_size(ButtonSize::Medium)
+        .style(DropdownStyle::Outlined)
+        .attach(gpui::Anchor::BottomRight)
+        .offset(gpui::Point {
+            x: px(0.0),
+            y: px(2.0),
+        })
+        .into_any_element()
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
     }
 }
 

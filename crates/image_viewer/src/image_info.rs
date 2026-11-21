@@ -1,6 +1,10 @@
 use gpui::{App, Context, Entity, IntoElement, ParentElement, Render, Subscription, div};
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
 use i18n::t;
 use project::image_store::{ImageFormat, ImageMetadata};
+=======
+use project::image_store::{ImageFormat, ImageMetadata, RasterImageFormat};
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
 use settings::Settings;
 use ui::prelude::*;
 use util::size::format_file_size;
@@ -66,6 +70,7 @@ impl Render for ImageInfo {
             );
         }
 
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
         components.push(match metadata.format {
             ImageFormat::Png => "PNG".to_string(),
             ImageFormat::Jpeg => "JPEG".to_string(),
@@ -77,6 +82,25 @@ impl Render for ImageInfo {
             ImageFormat::Avif => "Avif".to_string(),
             _ => t!("Unknown").to_string(),
         });
+=======
+        components.push(
+            match metadata.format {
+                ImageFormat::Svg => "SVG",
+                ImageFormat::Raster(format) => match format {
+                    RasterImageFormat::Png => "PNG",
+                    RasterImageFormat::Jpeg => "JPEG",
+                    RasterImageFormat::Gif => "GIF",
+                    RasterImageFormat::WebP => "WebP",
+                    RasterImageFormat::Tiff => "TIFF",
+                    RasterImageFormat::Bmp => "BMP",
+                    RasterImageFormat::Ico => "ICO",
+                    RasterImageFormat::Avif => "Avif",
+                    _ => "Unknown",
+                },
+            }
+            .to_string(),
+        );
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
 
         div().child(Label::new(components.join(" • ")).size(LabelSize::Small))
     }

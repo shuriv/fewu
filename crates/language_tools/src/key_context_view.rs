@@ -1,26 +1,19 @@
 use gpui::{
     Action, App, AppContext as _, Entity, EventEmitter, FocusHandle, Focusable,
-    KeyBindingContextPredicate, KeyContext, Keystroke, MouseButton, Render, Subscription, Task,
-    actions,
+    KeyBindingContextPredicate, KeyContext, Keystroke, MouseButton, Render, ScrollHandle,
+    Subscription, Task,
 };
 use i18n::t;
 use itertools::Itertools;
 use serde_json::json;
-use ui::{Button, ButtonStyle};
+use ui::{Button, ButtonStyle, ScrollAxes, Scrollbars, WithScrollbar};
 use ui::{
     ButtonCommon, Clickable, Context, FluentBuilder, InteractiveElement, Label, LabelCommon,
     LabelSize, ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, div,
     h_flex, px, v_flex,
 };
 use workspace::{Item, SplitDirection, Workspace};
-
-actions!(
-    dev,
-    [
-        /// Opens the key context view for debugging keybindings.
-        OpenKeyContextView
-    ]
-);
+use zed_actions::dev::OpenKeyContextView;
 
 pub fn init(cx: &mut App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
@@ -43,6 +36,7 @@ struct KeyContextView {
     last_possibilities: Vec<(SharedString, SharedString, Option<bool>)>,
     context_stack: Vec<KeyContext>,
     focus_handle: FocusHandle,
+    scroll_handle: ScrollHandle,
     _subscriptions: [Subscription; 2],
 }
 
@@ -54,9 +48,14 @@ impl KeyContextView {
             let mut possibilities = cx.all_bindings_for_input(&pending);
             possibilities.reverse();
             this.last_keystrokes = Some(
-                json!(pending.iter().map(|p| p.unparse()).join(" "))
-                    .to_string()
-                    .into(),
+                json!(
+                    pending
+                        .iter()
+                        .map(|p| p.unparse(cx.platform_info().os))
+                        .join(" ")
+                )
+                .to_string()
+                .into(),
             );
             this.context_stack = e.context_stack.clone();
             this.last_possibilities = possibilities
@@ -105,6 +104,7 @@ impl KeyContextView {
         });
 
         Self {
+            scroll_handle: ScrollHandle::new(),
             context_stack: Vec::new(),
             pending_keystrokes: None,
             last_keystrokes: None,
@@ -168,10 +168,10 @@ impl Item for KeyContextView {
 }
 
 impl Render for KeyContextView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl ui::IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl ui::IntoElement {
         use itertools::Itertools;
 
-        let key_equivalents = cx.keyboard_mapper().get_key_equivalents();
+        let key_equivalents = cx.keyboard_mapper().get_key_equivalents().cloned();
         v_flex()
             .id("key-context-view")
             .overflow_scroll()
@@ -252,14 +252,21 @@ impl Render for KeyContextView {
             .child(Label::new(t!("Last Keystroke")).mt_4().size(LabelSize::Large))
             .when_some(self.pending_keystrokes.as_ref(), |el, keystrokes| {
                 el.child(
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
                     Label::new(t!(
                         "Waiting for more input: {keystrokes}",
                         keystrokes = keystrokes.iter().map(|k| k.unparse()).join(" ")
+=======
+                    Label::new(format!(
+                        "Waiting for more input: {}",
+                        keystrokes.iter().map(|k| k.unparse(cx.platform_info().os)).join(" ")
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
                     ))
                     .ml(px(12.)),
                 )
             })
             .when_some(self.last_keystrokes.as_ref(), |el, keystrokes| {
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
                 el.child(Label::new(t!("Typed: {keystrokes}", keystrokes = keystrokes)).ml_4())
                     .children(
                         self.last_possibilities
@@ -277,6 +284,44 @@ impl Render for KeyContextView {
                                     .child(Label::new(predicate.clone()))
                                     .child(Label::new(text).color(color))
                             }),
+=======
+                el.child(Label::new(format!("Typed: {}", keystrokes)).ml_4())
+                    .child(
+                        div()
+                            .w_full()
+                            .pr_4()
+                            .child(
+                                v_flex()
+                                    .id("key-context-possibilities")
+                                    .track_scroll(&self.scroll_handle)
+                                    .pb_4()
+                                    .pl_8()
+                                    .overflow_x_scroll()
+                                    .items_start()
+                                    .children(
+                                                self.last_possibilities
+                                                    .iter()
+                                                    .map(|(name, predicate, state)| {
+                                                        let (text, color) = match state {
+                                                            Some(true) => ("(match)", ui::Color::Success),
+                                                            Some(false) => ("(low precedence)", ui::Color::Hint),
+                                                            None => ("(no match)", ui::Color::Error),
+                                                        };
+                                                        h_flex()
+                                                            .gap_2()
+                                                            .child(div().min_w(px(200.)).flex_shrink_0().child(Label::new(name.clone()).single_line()))
+                                                            .child(Label::new(predicate.clone()).single_line().flex_shrink_0())
+                                                            .child(Label::new(text).color(color).single_line().flex_shrink_0())
+                                    }),
+                                )
+                            )
+                            .custom_scrollbars(
+                                Scrollbars::new(ScrollAxes::Horizontal)
+                                    .tracked_scroll_handle(&self.scroll_handle),
+                                window,
+                                cx,
+                            )
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
                     )
             })
             .when_some(key_equivalents, |el, key_equivalents| {

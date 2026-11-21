@@ -1,3 +1,4 @@
+pub mod command;
 pub mod json_log;
 pub mod protocol;
 pub mod proxy;
@@ -12,9 +13,14 @@ pub use remote_client::{
     RemoteClientDelegate, RemoteClientEvent, RemoteConnection, RemoteConnectionOptions, RemoteOs,
     RemotePlatform, connect, has_active_connection,
 };
+<<<<<<< cf73da6cadf8191456b28881b9f02f56d7d6dd7d
 pub use remote_identity::{
     RemoteConnectionIdentity, remote_connection_identity, same_remote_connection_identity,
 };
+=======
+pub use remote_identity::RemoteConnectionIdentity;
+pub use transport::docker::DockerConnectionOptions;
+>>>>>>> c1795a8684e697fde0194ed0cb0628efec743abc
 pub use transport::ssh::{SshConnectionOptions, SshPortForwardOption};
 pub use transport::wsl::WslConnectionOptions;
 #[cfg(target_os = "windows")]
@@ -22,5 +28,6 @@ pub use transport::wsl::wsl_path_to_windows_path;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use transport::mock::{
-    MockConnection, MockConnectionOptions, MockConnectionRegistry, MockDelegate,
+    MOCK_STDIO_FRAME_HEX, MockConnection, MockConnectionOptions, MockConnectionRegistry,
+    MockDelegate,
 };
