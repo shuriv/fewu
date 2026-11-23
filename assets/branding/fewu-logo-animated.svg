@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-labelledby="fewuLogoAnimatedTitle">
+  <title id="fewuLogoAnimatedTitle">fewu</title>
+  <style><![CDATA[
+    .fewu-pulse {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: fewu-pulse 5.6s ease-in-out infinite;
+    }
+    .fewu-p1 { animation-delay: 0s; }
+    .fewu-p2 { animation-delay: 0.15s; }
+    .fewu-p3 { animation-delay: 0.3s; }
+    .fewu-p4 { animation-delay: 0.45s; }
+    @keyframes fewu-pulse {
+      0%, 70%, 100% { transform: scale(1); opacity: 1; }
+      82% { transform: scale(1.06); opacity: 0.9; }
+      90% { transform: scale(1); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fewu-pulse { animation: none; }
+    }
+  ]]></style>
+  <rect width="240" height="240" rx="52" fill="#191919" />
+  <g transform="translate(120 120) scale(1.18) translate(-500 -500)">
+    <rect class="fewu-pulse fewu-p1" x="417.5" y="417.5" width="75" height="75" rx="18" fill="#F6F3EC" />
+    <rect class="fewu-pulse fewu-p2" x="507.5" y="417.5" width="75" height="75" rx="18" fill="#C1E96D" />
+    <rect class="fewu-pulse fewu-p3" x="417.5" y="507.5" width="75" height="75" rx="18" fill="#F6F3EC" />
+    <rect class="fewu-pulse fewu-p4" x="507.5" y="532.5" width="75" height="50" rx="18" fill="#F6F3EC" />
+  </g>
+</svg>
