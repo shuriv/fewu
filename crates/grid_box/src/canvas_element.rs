@@ -277,11 +277,9 @@ fn register_listeners(
         }
         let (button, position) = (event.button, event.position);
         let (shift, click_count) = (event.modifiers.shift, event.click_count);
-        down_view
-            .update(cx, |view, cx| {
-                view.mouse_down(bounds, button, position, shift, click_count, window, cx);
-            })
-            .ok();
+        down_view.update(cx, |view, cx| {
+            view.mouse_down(bounds, button, position, shift, click_count, window, cx);
+        });
     });
 
     let move_view = view.clone();
@@ -290,9 +288,7 @@ fn register_listeners(
             return;
         }
         let position = event.position;
-        move_view
-            .update(cx, |view, cx| view.mouse_move(bounds, position, cx))
-            .ok();
+        move_view.update(cx, |view, cx| view.mouse_move(bounds, position, cx));
     });
 
     let up_view = view.clone();
@@ -300,7 +296,7 @@ fn register_listeners(
         if phase != DispatchPhase::Bubble || event.button != MouseButton::Left {
             return;
         }
-        up_view.update(cx, |view, cx| view.mouse_up(cx)).ok();
+        up_view.update(cx, |view, cx| view.mouse_up(cx));
     });
 
     let scroll_view = view.clone();
@@ -312,9 +308,7 @@ fn register_listeners(
             ScrollDelta::Pixels(pixels) => f32::from(pixels.y),
             ScrollDelta::Lines(lines) => lines.y * 20.0,
         };
-        scroll_view
-            .update(cx, |view, cx| view.scroll(delta_y, cx))
-            .ok();
+        scroll_view.update(cx, |view, cx| view.scroll(delta_y, cx));
     });
 }
 
