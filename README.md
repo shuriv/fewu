@@ -55,7 +55,7 @@ Agent Chat runs Claude Code, Codex, and OpenCode next to your code. It uses the 
 
 ## Get fewu
 
-There are no packaged releases yet. Build from source:
+Grab the Windows x86_64 build from the [latest release](https://github.com/shuriv/fewu/releases/latest), or build from source:
 
 ```sh
 git clone https://github.com/shuriv/fewu.git

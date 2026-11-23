@@ -55,7 +55,7 @@ Agent Chat 让你在代码旁边运行 Claude Code、Codex 和 OpenCode。它使
 
 ## 获取 fewu
 
-目前还没有打包好的发行版。请从源码构建：
+可以从[最新发布](https://github.com/shuriv/fewu/releases/latest)下载 Windows x86_64 版本，或者从源码构建：
 
 ```sh
 git clone https://github.com/shuriv/fewu.git
