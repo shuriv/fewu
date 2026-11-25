@@ -11,6 +11,7 @@ workspace = true
 [lib]
 name = "git_ui"
 path = "src/git_ui.rs"
+doctest = false
 
 [features]
 test-support = ["multi_buffer/test-support", "remote_connection/test-support"]
@@ -35,12 +36,16 @@ gpui.workspace = true
 i18n.workspace = true
 itertools.workspace = true
 language.workspace = true
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
+=======
+language_model.workspace = true
+language_model_selector.workspace = true
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 log.workspace = true
 markdown.workspace = true
 menu.workspace = true
 multi_buffer.workspace = true
 notifications.workspace = true
-panel.workspace = true
 picker.workspace = true
 project.workspace = true
 rand.workspace = true
@@ -62,6 +67,7 @@ time_format.workspace = true
 tracing.workspace = true
 ui.workspace = true
 ui_input.workspace = true
+unicode-width.workspace = true
 util.workspace = true
 watch.workspace = true
 workspace.workspace = true
@@ -77,6 +83,7 @@ fs = { workspace = true, features = ["test-support"] }
 git = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["test-support"] }
 indoc.workspace = true
+language = { workspace = true, features = ["test-support"] }
 pretty_assertions.workspace = true
 project = { workspace = true, features = ["test-support"] }
 rand.workspace = true
@@ -84,6 +91,7 @@ remote_connection = { workspace = true, features = ["test-support"] }
 search.workspace = true
 settings = { workspace = true, features = ["test-support"] }
 task.workspace = true
+tree-sitter-md.workspace = true
 unindent.workspace = true
 workspace = { workspace = true, features = ["test-support"] }
 zlog.workspace = true

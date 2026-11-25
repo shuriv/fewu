@@ -1,22 +1,95 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
 pub const MAX_SOURCE_BYTES: usize = 16 * 1024;
 pub const MAX_SOURCE_LINES: usize = 256;
 pub const MAX_SOURCE_TOKENS: usize = 2048;
 pub const MAX_SVG_BYTES: usize = 2 * 1024 * 1024;
 pub const MAX_RETAINED_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_CACHE_ENTRIES: usize = 64;
+=======
+//! Crate for rendering Mermaid diagram strings to SVG strings.
+//!
+//! The entrypoint to this crate is [`render_to_svg`].
+//!
+//! It takes a `&str` and a [`MermaidTheme`]. The output is an SVG with the
+//! following properties:
+//! - The style matches the provided theme
+//! - Nodes are given accent colors, even if none are provided in the mermaid
+//!   source.
+//! - The SVG has been tweaked based on the assumption that it will be rasterized
+//!   using `usvg`/`resvg`. Some bugs/quirks of `usvg`/`resvg` are accounted for
+//!   in this crate.
+//!
+//! This module uses the [`merman`] crate for rendering, rather than
+//! `mermaid-rs`, which was used in the previous implementation of mermaid
+//! rendering in Zed.
+//!
+//! Historically, this crate also carried generic `usvg`/`resvg` cleanup for SVG
+//! constructs that merman's parity output could emit, such as HTML labels in
+//! `<foreignObject>` and CSS/attribute forms that rasterizers do not handle.
+//! Since merman 0.6, that generic cleanup is exposed as merman's raster-safe SVG
+//! pipeline. Zed opts into that pipeline during rendering, then keeps
+//! editor-specific theme and accent color rules in this crate.
+//!
+//! The [`render_to_svg`] function operates in two stages:
+//! - [`render`] the mermaid text to raster-safe SVG using [`merman`].
+//! - [`postprocess`] the SVG to add Zed theme and accent styling.
+//!
+//! Zed's postprocessing is split up into stages. We parse the generated SVG
+//! using [`quick_xml`], which produces an iterator of
+//! [`Event<'_>`](quick_xml::events::Event)s. This iterator is then repeatedly
+//! transformed, and finally collected back into an SVG string.
+//!
+//! This approach:
+//! - Avoids doing multiple expensive string insertions.
+//! - Avoids parsing the SVG multiple times (without needing to put all the
+//!   logic in one huge function).
+//! - But is quite a bit more complex.
+//!
+//! I think this complexity is justified because of the drastic performance
+//! impact, as well as the low-risk nature; this code cannot panic, and errors
+//! in the output just produce weird-looking diagrams.
+//!
+//! ## Color handling
+//!
+//! We try to match the users theme, and also apply accent colors to diagrams to
+//! make them more visually interesting. Accent colors are derived from the
+//! `player_colors` in the Zed theme.
+//!
+//! There are three parts to color handling:
+//!
+//! 1. A [`merman::MermaidConfig`] is passed when initially rendering the
+//!    diagram. This sets most "normal" colors (background, text, etc.). However,
+//!    it's not possible to color nodes individually, and not all parts of the
+//!    diagrams are correctly themed.
+//! 2. `postprocess::accent_colors` injects custom CSS classes (e.g.
+//!    `zed-accent-0`) to specific elements, based on the diagram type and
+//!    node.
+//! 3. `postprocess::inject_css` injects CSS rules for the classes applied by
+//!    `accent_colors`
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 
 // The renderer cannot be cancelled, so renders run one at a time.
 static RENDER_LOCK: Mutex<()> = Mutex::new(());
 
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rgba {
     pub r: f32,
     pub g: f32,
     pub b: f32,
     pub a: f32,
+=======
+use anyhow::Result;
+use gpui::{Hsla, Rgba, SvgRenderer};
+
+#[derive(Debug, Clone, Copy)]
+pub struct AccentColor {
+    pub foreground: Hsla,
+    pub background: Hsla,
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 }
 
 impl Rgba {
@@ -335,6 +408,7 @@ pub enum Lookup<T> {
     Failed(RenderError),
 }
 
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
 #[derive(Debug)]
 pub struct Finished<T> {
     pub owners: Vec<String>,
@@ -493,12 +567,25 @@ impl<T: Clone + RetainedBytes> DiagramCache<T> {
             })
             .collect()
     }
+=======
+/// See the [module-level docs][crate] for more info.
+#[ztracing::instrument(skip_all)]
+pub fn render_to_svg(
+    source: &str,
+    theme: &MermaidTheme,
+    svg_renderer: &SvgRenderer,
+) -> Result<String> {
+    let svg = render::render_mermaid(source, theme, svg_renderer)?;
+    let svg = postprocess::postprocess(&svg, theme)?;
+    Ok(svg)
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
     fn rgb(hex: u32) -> Rgba {
         Rgba {
             r: ((hex >> 16) & 0xff) as f32 / 255.0,
@@ -736,5 +823,59 @@ mod tests {
             .expect("theme is unchanged");
         assert_eq!(finished.evicted, [Weighted(MAX_RETAINED_BYTES)]);
         assert_eq!(cache.retained_bytes(), 1);
+=======
+    #[test]
+    fn mermaid_diagram_with_mixed_weight_combining_marks_does_not_panic() {
+        const IBM_PLEX_REGULAR: &[u8] =
+            include_bytes!("../../../assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf");
+        const IBM_PLEX_SEMIBOLD: &[u8] =
+            include_bytes!("../../../assets/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.ttf");
+
+        let zalgo = "Ne\u{0301}\u{0302}\u{0303}\u{0304}\u{0306}\u{0307}\u{0308}\u{030a}d";
+        let source = format!("flowchart TD\n  A[\"**{zalgo}** {zalgo}\"]");
+        let svg = render_to_svg(&source, &MermaidTheme::default(), &svg_renderer())
+            .expect("mermaid diagram should render to SVG");
+
+        let mut db = usvg::fontdb::Database::new();
+        db.load_font_data(IBM_PLEX_REGULAR.to_vec());
+        db.load_font_data(IBM_PLEX_SEMIBOLD.to_vec());
+        db.set_sans_serif_family("IBM Plex Sans");
+        let options = usvg::Options {
+            fontdb: std::sync::Arc::new(db),
+            ..Default::default()
+        };
+
+        usvg::Tree::from_data(svg.as_bytes(), &options)
+            .expect("rasterizing mermaid text should not panic");
+    }
+
+    /// An ER diagram whose attribute-block tokens begin with a multibyte
+    /// UTF-8 character (e.g. CJK type/field names) must not panic while the
+    /// lexer probes for the two-character `PK`/`FK`/`UK` keys.
+    #[test]
+    fn er_multibyte_attribute_does_not_crash() {
+        let source = "erDiagram\n顧客 {\n  文字列 名前\n}";
+        let _ = render_to_svg(source, &MermaidTheme::default(), &svg_renderer());
+    }
+
+    /// A flowchart with mutually nested subgraphs (`A` contains `B` and `B`
+    /// contains `A`) is an invalid containment cycle. Rendering it must return
+    /// gracefully rather than overflowing the stack and aborting the process.
+    #[test]
+    fn cyclic_subgraphs_do_not_crash() {
+        let source = "flowchart TD\n  subgraph A\n    B\n  end\n  subgraph B\n    A\n  end";
+        let result = render_to_svg(source, &MermaidTheme::default(), &svg_renderer());
+        if let Err(err) = result {
+            let message = format!("{err:#}");
+            assert!(
+                message.contains("cycle"),
+                "expected a cycle-related error, got: {message}"
+            );
+        }
+    }
+
+    fn svg_renderer() -> SvgRenderer {
+        SvgRenderer::new(std::sync::Arc::new(()))
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
     }
 }

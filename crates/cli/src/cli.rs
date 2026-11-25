@@ -74,6 +74,8 @@ pub enum CliRequest {
         /// `cli_default_open_behavior`, or is a one-off default.
         persist: bool,
     },
+    /// Print a diagnostic snapshot of the app's GPUI and platform state.
+    DebugState,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

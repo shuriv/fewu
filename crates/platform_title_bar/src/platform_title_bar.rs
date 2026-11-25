@@ -1,5 +1,6 @@
 pub mod platforms;
 mod system_window_tabs;
+mod title_bar_settings;
 
 use gpui::{
     Action, AnyElement, App, Context, Decorations, Entity, Hsla, InteractiveElement, IntoElement,
@@ -14,21 +15,65 @@ use ui::{
 };
 use workspace::MultiWorkspace;
 
-use crate::{
-    platforms::{platform_linux, platform_windows},
-    system_window_tabs::SystemWindowTabs,
-};
+use crate::platforms::{platform_linux, platform_windows};
 
 pub use system_window_tabs::{
-    DraggedWindowTab, MergeAllWindows, MoveTabToNewWindow, ShowNextWindowTab, ShowPreviousWindowTab,
+    DraggedWindowTab, MergeAllWindows, MoveTabToNewWindow, ShowNextWindowTab,
+    ShowPreviousWindowTab, SystemWindowTabs,
 };
+pub use title_bar_settings::TitleBarSettings;
+
+/// With client-side decorations, the title bar is pulled over the window frame's
+/// border to avoid a transparent gap in the rounded corners, and a border in the
+/// title bar's own color insets its content back by the same amount. Headers that
+/// render window controls in place of the title bar use this to apply the same
+/// insets as padding, so the controls stay on the same pixel.
+///
+/// `pad_bottom` should be false when the header already has a bottom border of
+/// its own occupying that space.
+pub fn apply_title_bar_insets<E: Styled + FluentBuilder>(
+    header: E,
+    left_window_controls: bool,
+    right_window_controls: bool,
+    pad_bottom: bool,
+) -> E {
+    let inset = theme::CLIENT_SIDE_DECORATION_BORDER;
+    header
+        .mt(-inset)
+        .pt(inset)
+        .when(pad_bottom, |header| header.pb(inset))
+        .when(left_window_controls, |header| header.pl(inset))
+        .when(right_window_controls, |header| header.pr(inset))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SidebarWindowControls {
+    pub traffic_lights: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
+impl SidebarWindowControls {
+    pub fn new(sidebar_side: SidebarSide, window: &Window, cx: &App) -> Self {
+        let visible = !window.is_fullscreen()
+            && !window.is_simple_fullscreen()
+            && TitleBarSettings::is_title_bar_visible(window, cx);
+        let is_macos = cfg!(target_os = "macos");
+        let on_left = sidebar_side == SidebarSide::Left;
+        Self {
+            traffic_lights: visible && is_macos && on_left,
+            left: visible && !is_macos && on_left,
+            right: visible && !is_macos && !on_left,
+        }
+    }
+}
 
 pub struct PlatformTitleBar {
     id: ElementId,
     platform_style: PlatformStyle,
     children: SmallVec<[AnyElement; 2]>,
     should_move: bool,
-    system_window_tabs: Entity<SystemWindowTabs>,
+    system_window_tabs: Option<Entity<SystemWindowTabs>>,
     button_layout: Option<WindowButtonLayout>,
     multi_workspace: Option<WeakEntity<MultiWorkspace>>,
 }
@@ -36,7 +81,7 @@ pub struct PlatformTitleBar {
 impl PlatformTitleBar {
     pub fn new(id: impl Into<ElementId>, cx: &mut Context<Self>) -> Self {
         let platform_style = PlatformStyle::platform();
-        let system_window_tabs = cx.new(|_cx| SystemWindowTabs::new());
+        let system_window_tabs = Some(cx.new(|_cx| SystemWindowTabs::new()));
 
         Self {
             id: id.into(),
@@ -47,6 +92,11 @@ impl PlatformTitleBar {
             button_layout: None,
             multi_workspace: None,
         }
+    }
+
+    pub fn without_system_window_tabs(mut self) -> Self {
+        self.system_window_tabs = None;
+        self
     }
 
     pub fn with_multi_workspace(mut self, multi_workspace: WeakEntity<MultiWorkspace>) -> Self {
@@ -252,6 +302,7 @@ impl Render for PlatformTitleBar {
             .map(|el| match decorations {
                 Decorations::Server => el,
                 Decorations::Client { tiling, .. } => el
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
                     .when(!(tiling.top || tiling.right), |el| {
                         el.rounded_tr(theme::CLIENT_SIDE_DECORATION_ROUNDING)
                     })
@@ -262,6 +313,22 @@ impl Render for PlatformTitleBar {
                     .mt(px(-1.))
                     .mb(px(-1.))
                     .border(px(1.))
+=======
+                    .when(
+                        !(tiling.top || tiling.right)
+                            && !(sidebar.open && sidebar.side == SidebarSide::Right),
+                        |el| el.rounded_tr(theme::CLIENT_SIDE_DECORATION_ROUNDING),
+                    )
+                    .when(
+                        !(tiling.top || tiling.left)
+                            && !(sidebar.open && sidebar.side == SidebarSide::Left),
+                        |el| el.rounded_tl(theme::CLIENT_SIDE_DECORATION_ROUNDING),
+                    )
+                    // Keep in sync with `apply_title_bar_insets`.
+                    .mt(-theme::CLIENT_SIDE_DECORATION_BORDER)
+                    .mb(-theme::CLIENT_SIDE_DECORATION_BORDER)
+                    .border(theme::CLIENT_SIDE_DECORATION_BORDER)
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
                     .border_color(titlebar_color),
             })
             .bg(titlebar_color)
@@ -311,7 +378,7 @@ impl Render for PlatformTitleBar {
         v_flex()
             .w_full()
             .child(title_bar)
-            .child(self.system_window_tabs.clone().into_any_element())
+            .children(self.system_window_tabs.clone())
     }
 }
 

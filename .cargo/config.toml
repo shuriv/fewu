@@ -1,7 +1,11 @@
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
 [build]
 # fewu targets 8 GB machines (and the linker is the peak-RSS offender), so keep
 # build parallelism low to avoid OOM-killing the linker.
 jobs = 2
+=======
+[target.'cfg(all())']
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 # v0 mangling scheme provides more detailed backtraces around closures
 rustflags = [
     "-C",
@@ -47,4 +51,4 @@ rustflags = [
 ]
 
 [env]
-MACOSX_DEPLOYMENT_TARGET = "10.15.7"
+MACOSX_DEPLOYMENT_TARGET = "12.0"

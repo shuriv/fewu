@@ -1,6 +1,6 @@
 //! A module, responsible for managing the trust logic in Zed.
 //!
-//! It deals with multiple hosts, distinguished by [`RemoteHostLocation`].
+//! It deals with multiple hosts, distinguished by [`remote::RemoteConnectionIdentity`].
 //! Each [`crate::Project`] and `HeadlessProject` should call [`init_global`], if wants to establish the trust mechanism.
 //! This will set up a [`gpui::Global`] with [`TrustedWorktrees`] entity that will persist, restore and allow querying for worktree trust.
 //! It's also possible to subscribe on [`TrustedWorktreesEvent`] events of this entity to track trust changes dynamically.
@@ -41,10 +41,8 @@
 
 use client::ProjectId;
 use collections::{HashMap, HashSet};
-use gpui::{
-    App, AppContext as _, Context, Entity, EventEmitter, Global, SharedString, Task, WeakEntity,
-};
-use remote::RemoteConnectionOptions;
+use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global, Task, WeakEntity};
+use remote::RemoteConnectionIdentity;
 use rpc::{AnyProtoClient, proto};
 use settings::{Settings as _, WorktreeId};
 use std::{
@@ -65,7 +63,7 @@ pub fn init(db_trusted_paths: DbTrustedPaths, cx: &mut App) {
 /// An initialization call to set up trust global for a particular project (remote or local).
 pub fn track_worktree_trust(
     worktree_store: Entity<WorktreeStore>,
-    remote_host: Option<RemoteHostLocation>,
+    remote_host: Option<RemoteConnectionIdentity<'static>>,
     downstream_client: Option<(AnyProtoClient, ProjectId)>,
     upstream_client: Option<(AnyProtoClient, ProjectId)>,
     cx: &mut App,
@@ -144,6 +142,7 @@ pub struct TrustedWorktreesStore {
 struct StoreData {
     upstream_client: Option<(AnyProtoClient, ProjectId)>,
     downstream_client: Option<(AnyProtoClient, ProjectId)>,
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
     host: Option<RemoteHostLocation>,
 }
 
@@ -177,6 +176,9 @@ impl From<RemoteConnectionOptions> for RemoteHostLocation {
             host_identifier: host_name,
         }
     }
+=======
+    host: Option<RemoteConnectionIdentity<'static>>,
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 }
 
 /// A unit of trust consideration inside a particular host:
@@ -228,7 +230,7 @@ pub enum TrustedWorktreesEvent {
 impl EventEmitter<TrustedWorktreesEvent> for TrustedWorktreesStore {}
 
 type TrustedPaths = HashMap<WeakEntity<WorktreeStore>, HashSet<PathTrust>>;
-pub type DbTrustedPaths = HashMap<Option<RemoteHostLocation>, HashSet<PathBuf>>;
+pub type DbTrustedPaths = HashMap<Option<RemoteConnectionIdentity<'static>>, HashSet<PathBuf>>;
 
 impl TrustedWorktreesStore {
     fn new(db_trusted_paths: DbTrustedPaths) -> Self {
@@ -283,6 +285,7 @@ impl TrustedWorktreesStore {
         let mut new_trusted_single_file_worktrees = HashSet::default();
         let mut new_trusted_other_worktrees = HashSet::default();
         let mut new_trusted_abs_paths = HashSet::default();
+        let path_style = worktree_store.read(cx).path_style();
         for trusted_path in trusted_paths.iter().chain(
             self.trusted_paths
                 .remove(&weak_worktree_store)
@@ -313,10 +316,7 @@ impl TrustedWorktreesStore {
                 }
                 PathTrust::AbsPath(abs_path) => {
                     debug_assert!(
-                        util::paths::is_absolute(
-                            &abs_path.to_string_lossy(),
-                            worktree_store.read(cx).path_style()
-                        ),
+                        worktree_store.read(cx).path_style().is_absolute(&abs_path),
                         "Cannot trust non-absolute path {abs_path:?} on path style {style:?}",
                         style = worktree_store.read(cx).path_style()
                     );
@@ -336,9 +336,9 @@ impl TrustedWorktreesStore {
         }
 
         new_trusted_other_worktrees.retain(|(worktree_abs_path, _)| {
-            new_trusted_abs_paths
-                .iter()
-                .all(|new_trusted_path| !worktree_abs_path.starts_with(new_trusted_path))
+            new_trusted_abs_paths.iter().all(|new_trusted_path| {
+                !path_style.starts_with(worktree_abs_path, new_trusted_path)
+            })
         });
         if !new_trusted_other_worktrees.is_empty() {
             new_trusted_single_file_worktrees.clear();
@@ -365,7 +365,7 @@ impl TrustedWorktreesStore {
                     let restricted_worktree_path = worktree.read(cx).abs_path();
                     let retain = (!is_file || new_trusted_other_worktrees.is_empty())
                         && new_trusted_abs_paths.iter().all(|new_trusted_path| {
-                            !restricted_worktree_path.starts_with(new_trusted_path)
+                            !path_style.starts_with(&restricted_worktree_path, new_trusted_path)
                         });
                     if !retain {
                         trusted_paths.insert(PathTrust::Worktree(*restricted_worktree));
@@ -471,6 +471,7 @@ impl TrustedWorktreesStore {
             return false;
         };
         let worktree_path = worktree.read(cx).abs_path();
+        let path_style = worktree.read(cx).path_style();
         // Zed opened an "internal" directory: e.g. a tmp dir for `keymap_editor.rs` needs.
         if !worktree.read(cx).is_visible() {
             log::debug!("Skipping worktree trust checks for not visible {worktree_path:?}");
@@ -495,7 +496,7 @@ impl TrustedWorktreesStore {
         }
 
         // * Single files are auto-approved when something else (not a single file) was approved on this host already.
-        // * If parent path is trusted already, this worktree is stusted also.
+        // * If parent path is trusted already, this worktree is trusted also.
         //
         // See module documentation for details on trust level.
         if let Some(trusted_paths) = self.trusted_paths.get(&weak_worktree_store) {
@@ -505,11 +506,11 @@ impl TrustedWorktreesStore {
                         .worktree_for_id(*worktree_id, cx)
                         .is_some_and(|worktree| {
                             let worktree = worktree.read(cx);
-                            worktree_path.starts_with(&worktree.abs_path())
+                            path_style.starts_with(&worktree_path, &worktree.abs_path())
                                 || (is_file && !worktree.is_single_file())
                         }),
                     PathTrust::AbsPath(trusted_path) => {
-                        is_file || worktree_path.starts_with(trusted_path)
+                        is_file || path_style.starts_with(&worktree_path, trusted_path)
                     }
                 })
             });
@@ -604,7 +605,10 @@ impl TrustedWorktreesStore {
 
     pub fn schedule_serialization<S>(&mut self, cx: &mut Context<Self>, serialize: S)
     where
-        S: FnOnce(HashMap<Option<RemoteHostLocation>, HashSet<PathBuf>>, &App) -> Task<()>
+        S: FnOnce(
+                HashMap<Option<RemoteConnectionIdentity<'static>>, HashSet<PathBuf>>,
+                &App,
+            ) -> Task<()>
             + 'static,
     {
         self.worktree_trust_serialization = serialize(self.trusted_paths_for_serialization(cx), cx);
@@ -613,7 +617,7 @@ impl TrustedWorktreesStore {
     fn trusted_paths_for_serialization(
         &mut self,
         cx: &mut Context<Self>,
-    ) -> HashMap<Option<RemoteHostLocation>, HashSet<PathBuf>> {
+    ) -> HashMap<Option<RemoteConnectionIdentity<'static>>, HashSet<PathBuf>> {
         let new_trusted_paths = self
             .trusted_paths
             .iter()
@@ -648,7 +652,7 @@ impl TrustedWorktreesStore {
     fn add_worktree_store(
         &mut self,
         worktree_store: Entity<WorktreeStore>,
-        remote_host: Option<RemoteHostLocation>,
+        remote_host: Option<RemoteConnectionIdentity<'static>>,
         downstream_client: Option<(AnyProtoClient, ProjectId)>,
         upstream_client: Option<(AnyProtoClient, ProjectId)>,
         cx: &mut Context<Self>,

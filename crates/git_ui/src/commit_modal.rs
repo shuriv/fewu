@@ -342,6 +342,7 @@ impl CommitModal {
             .anchor(Anchor::TopRight)
     }
 
+<<<<<<< e7f7e51e8bb8928f6da436ea430467bdcb09559d
     pub fn render_footer(&self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (can_commit, tooltip, commit_label, co_authors, active_repo, commit_options, workspace) =
             self.git_panel.update(cx, |git_panel, cx| {
@@ -360,6 +361,40 @@ impl CommitModal {
                     git_panel.workspace.clone(),
                 )
             });
+=======
+    pub fn render_footer(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let (
+            can_commit,
+            tooltip,
+            commit_label,
+            co_authors,
+            generate_commit_message,
+            active_repo,
+            commit_options,
+            workspace,
+            is_generating,
+        ) = self.git_panel.update(cx, |git_panel, cx| {
+            let (can_commit, tooltip) = git_panel.configure_commit_button(cx);
+            let title = git_panel.commit_button_title();
+            let co_authors = git_panel.render_co_authors(cx);
+            let generate_commit_message =
+                git_panel.render_generate_commit_message_button(false, cx);
+            let active_repo = git_panel.active_repository.clone();
+            let commit_options = git_panel.commit_options();
+            let is_generating = git_panel.is_generating_commit_message();
+            (
+                can_commit,
+                tooltip,
+                title,
+                co_authors,
+                generate_commit_message,
+                active_repo,
+                commit_options,
+                git_panel.workspace.clone(),
+                is_generating,
+            )
+        });
+>>>>>>> d571ed289a308ccf0958d92ca2a28b9e44e6e2f5
 
         let branch = active_repo
             .as_ref()
@@ -626,7 +661,7 @@ impl Render for CommitModal {
                     .id("editor-container")
                     .cursor_text()
                     .p_2()
-                    .size_full()
+                    .flex_1()
                     .gap_2()
                     .justify_between()
                     .rounded(properties.editor_border_radius())
@@ -666,7 +701,7 @@ impl Render for CommitModal {
                                 ),
                         )
                     })
-                    .child(self.render_footer(window, cx)),
+                    .child(self.render_footer(cx)),
             )
     }
 }
